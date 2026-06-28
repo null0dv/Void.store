@@ -3,7 +3,6 @@ let allProducts = [];
 let currentLightboxId = null;
 let publicBaseUrl = null;
 let persistentStorage = true;
-let lineInquiryUrl = null;
 let lineGroupUrl = null;
 
 const CART_KEY = 'void-store-cart';
@@ -53,14 +52,11 @@ const lightboxName = document.getElementById('lightboxName');
 const lightboxDesc = document.getElementById('lightboxDesc');
 const lightboxPrice = document.getElementById('lightboxPrice');
 const lightboxCartBtn = document.getElementById('lightboxCartBtn');
-const lightboxLineBtn = document.getElementById('lightboxLineBtn');
 const lightboxShareBtn = document.getElementById('lightboxShareBtn');
 const publicUrlLabel = document.getElementById('publicUrlLabel');
 const lineGroupBtn = document.getElementById('lineGroupBtn');
 const lineCtaBanner = document.getElementById('lineCtaBanner');
 const lineGroupBannerBtn = document.getElementById('lineGroupBannerBtn');
-const lineInquiryBannerBtn = document.getElementById('lineInquiryBannerBtn');
-const lineInquiryCartBtn = document.getElementById('lineInquiryCartBtn');
 
 const fetchOpts = { credentials: 'include', cache: 'no-store' };
 
@@ -166,7 +162,7 @@ function getCartSummaryText() {
   const cart = getCart();
   if (cart.length === 0) return '';
 
-  const lines = ['VOID.STORE 購物車詢價'];
+  const lines = ['VOID.STORE 購物車清單'];
   let total = 0;
 
   cart.forEach(item => {
@@ -182,30 +178,6 @@ function getCartSummaryText() {
   return lines.join('\n');
 }
 
-function getProductInquiryText(product) {
-  return [
-    'VOID.STORE 商品詢價',
-    `- ${product.name}`,
-    `NT$ ${formatPrice(product.price)} · ${product.category}`,
-    product.description ? product.description : '',
-    '想確認庫存與運費，麻煩回覆，謝謝！',
-  ].filter(Boolean).join('\n');
-}
-
-function buildLineMessageUrl(message) {
-  if (!lineInquiryUrl) return null;
-
-  const base = lineInquiryUrl.trim();
-  if (!message) return base;
-
-  if (/\/oaMessage\/|\/msg\//i.test(base)) {
-    const suffix = base.endsWith('/') || base.endsWith('?') ? '' : '/';
-    return `${base}${suffix}${encodeURIComponent(message)}`;
-  }
-
-  return base;
-}
-
 async function copyText(text) {
   if (!text) return false;
   try {
@@ -213,26 +185,6 @@ async function copyText(text) {
     return true;
   } catch {
     return false;
-  }
-}
-
-async function openLineInquiry(message) {
-  const text = message || getCartSummaryText() || '你好，我想詢價 VOID.STORE 商品';
-  const copied = await copyText(text);
-  const url = buildLineMessageUrl(text);
-
-  if (url) {
-    window.open(url, '_blank', 'noopener');
-  }
-
-  if (copied) {
-    showToast(url && /oaMessage|\/msg\//i.test(lineInquiryUrl)
-      ? '詢價內容已複製，正在開啟 LINE...'
-      : '詢價內容已複製，請貼到 LINE 訊息欄');
-  } else if (url) {
-    showToast('正在開啟 LINE...');
-  } else {
-    showToast('請先設定 LINE 詢價連結', 'error');
   }
 }
 
@@ -246,16 +198,12 @@ function openLineGroup() {
 }
 
 function updateLineUi() {
-  const hasInquiry = Boolean(lineInquiryUrl);
   const hasGroup = Boolean(lineGroupUrl);
-  const showGuestLine = !isAdmin && (hasInquiry || hasGroup);
+  const showGuestLine = !isAdmin && hasGroup;
 
   lineGroupBtn.hidden = !hasGroup;
   lineCtaBanner.hidden = !showGuestLine;
   lineGroupBannerBtn.hidden = !hasGroup;
-  lineInquiryBannerBtn.hidden = !hasInquiry;
-  lineInquiryCartBtn.hidden = !hasInquiry;
-  lightboxLineBtn.hidden = !hasInquiry || isAdmin;
 }
 
 function renderCartDrawer() {
@@ -408,13 +356,6 @@ copyCartBtn.addEventListener('click', async () => {
 
 lineGroupBtn.addEventListener('click', openLineGroup);
 lineGroupBannerBtn.addEventListener('click', openLineGroup);
-lineInquiryBannerBtn.addEventListener('click', () => openLineInquiry());
-lineInquiryCartBtn.addEventListener('click', () => openLineInquiry());
-lightboxLineBtn.addEventListener('click', () => {
-  if (!currentLightboxId) return;
-  const product = allProducts.find(p => p.id === currentLightboxId);
-  if (product) openLineInquiry(getProductInquiryText(product));
-});
 
 adminLogoutBtn.addEventListener('click', async () => {
   await fetch('/api/admin/logout', { method: 'POST', ...fetchOpts });
@@ -451,9 +392,6 @@ closeLightboxBtn.addEventListener('click', closeImageLightbox);
 lightboxCartBtn.addEventListener('click', () => {
   if (!currentLightboxId) return;
   addToCart(currentLightboxId);
-  if (lineInquiryUrl) {
-    showToast('已加入購物車，可點 LINE 詢價傳清單');
-  }
 });
 lightboxShareBtn.addEventListener('click', () => {
   if (currentLightboxId) shareProduct(currentLightboxId);
@@ -559,7 +497,6 @@ async function loadSiteConfig() {
     const data = await res.json();
     publicBaseUrl = data.publicUrl || null;
     persistentStorage = data.persistentStorage !== false;
-    lineInquiryUrl = data.lineInquiryUrl || null;
     lineGroupUrl = data.lineGroupUrl || null;
     updateLineUi();
 
