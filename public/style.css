@@ -547,6 +547,47 @@ body {
   align-self: flex-start;
 }
 
+.card-type-badge {
+  position: absolute;
+  top: 7px;
+  left: 7px;
+  z-index: 2;
+  font-size: 8px;
+  font-family: var(--mono);
+  letter-spacing: 0.06em;
+  border-radius: 4px;
+  padding: 3px 7px;
+  line-height: 1.2;
+  border: 1px solid transparent;
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  pointer-events: none;
+}
+
+.card-type-badge--stock {
+  color: #b8f5d0;
+  background: rgba(6, 199, 85, 0.18);
+  border-color: rgba(6, 199, 85, 0.35);
+}
+
+.card-type-badge--ai {
+  color: #d4c8ff;
+  background: rgba(140, 110, 255, 0.2);
+  border-color: rgba(140, 110, 255, 0.38);
+}
+
+.lb-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 4px;
+}
+
+.lb-badges .card-type-badge {
+  position: static;
+  pointer-events: none;
+}
+
 .card-title {
   font-size: 11px;
   color: var(--accent2);

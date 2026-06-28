@@ -55,6 +55,7 @@ const closeLightboxBtn = document.getElementById('closeLightbox');
 const lightboxImage = document.getElementById('lightboxImage');
 const lightboxPlaceholder = document.getElementById('lightboxPlaceholder');
 const lightboxCategory = document.getElementById('lightboxCategory');
+const lightboxStockType = document.getElementById('lightboxStockType');
 const lightboxName = document.getElementById('lightboxName');
 const lightboxDesc = document.getElementById('lightboxDesc');
 const lightboxPrice = document.getElementById('lightboxPrice');
@@ -70,6 +71,7 @@ const editId = document.getElementById('editId');
 const editName = document.getElementById('editName');
 const editPrice = document.getElementById('editPrice');
 const editCategory = document.getElementById('editCategory');
+const editStockType = document.getElementById('editStockType');
 const editDescription = document.getElementById('editDescription');
 const editImageInput = document.getElementById('editImage');
 const editDropZone = document.getElementById('editDropZone');
@@ -641,6 +643,7 @@ function openEditModal(product) {
   editName.value = product.name;
   editPrice.value = String(Math.round(product.price));
   editCategory.value = product.category || '其他';
+  editStockType.value = normalizeStockType(product.stock_type);
   editDescription.value = product.description || '';
   resetEditImagePreview();
 
@@ -684,6 +687,29 @@ function escapeHtml(text) {
   const div = document.createElement('div');
   div.textContent = text;
   return div.innerHTML;
+}
+
+function normalizeStockType(value) {
+  return value === 'AI製' ? 'AI製' : '現貨';
+}
+
+function stockTypeBadgeClass(stockType) {
+  return normalizeStockType(stockType) === 'AI製'
+    ? 'card-type-badge card-type-badge--ai'
+    : 'card-type-badge card-type-badge--stock';
+}
+
+function renderStockTypeBadge(stockType) {
+  const type = normalizeStockType(stockType);
+  return `<span class="${stockTypeBadgeClass(type)}">${escapeHtml(type)}</span>`;
+}
+
+function applyStockTypeBadge(el, stockType) {
+  if (!el) return;
+  const type = normalizeStockType(stockType);
+  el.textContent = type;
+  el.className = stockTypeBadgeClass(type);
+  el.hidden = false;
 }
 
 function isLocalHost() {
@@ -762,6 +788,7 @@ function openImageLightbox(product) {
   recordView(product.id);
 
   lightboxCategory.textContent = product.category;
+  applyStockTypeBadge(lightboxStockType, product.stock_type);
   lightboxName.textContent = product.name;
   lightboxDesc.textContent = product.description || '暫無商品描述';
   lightboxPrice.textContent = formatPrice(product.price);
@@ -812,6 +839,7 @@ function renderProduct(product) {
     <article class="gallery-card product-card" id="product-${product.id}" data-id="${product.id}">
       <div class="card-img-wrap product-image-wrap" data-action="view" data-id="${product.id}">
         ${imageHtml}
+        ${renderStockTypeBadge(product.stock_type)}
         <div class="card-overlay">
           <div class="card-meta-wrap">
             <span class="card-badge">${escapeHtml(product.category)}</span>
