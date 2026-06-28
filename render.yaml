@@ -1,6 +1,6 @@
 services:
   - type: web
-    name: void-store
+    name: null0dv-void-store
     runtime: node
     plan: free
     region: singapore
