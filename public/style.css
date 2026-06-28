@@ -152,6 +152,7 @@ body {
 
 .member-modal {
   max-width: 400px;
+  isolation: isolate;
 }
 
 .member-login-header {
@@ -182,15 +183,59 @@ body {
 
 .google-signin-wrap {
   display: flex;
+  flex-direction: column;
+  align-items: center;
   justify-content: center;
   margin: 20px 0 8px;
   min-height: 48px;
+  position: relative;
+  z-index: 2;
+  pointer-events: auto;
 }
 
 .google-signin-wrap > div {
   width: 100%;
   display: flex;
   justify-content: center;
+  pointer-events: auto;
+}
+
+.google-signin-wrap iframe {
+  pointer-events: auto !important;
+}
+
+.google-fallback-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  width: min(320px, 100%);
+  min-height: 44px;
+  padding: 0 18px;
+  border: 1px solid var(--line2);
+  border-radius: 999px;
+  background: #111;
+  color: var(--text);
+  font-family: var(--sans);
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  cursor: pointer;
+  transition: border-color 0.2s ease, background 0.2s ease;
+}
+
+.google-fallback-btn:hover {
+  border-color: rgba(220, 220, 220, 0.2);
+  background: #161616;
+}
+
+.google-fallback-btn:disabled {
+  opacity: 0.6;
+  cursor: wait;
+}
+
+.google-fallback-icon {
+  display: inline-flex;
 }
 
 .modal-hint {
@@ -778,27 +823,34 @@ body {
   position: fixed;
   inset: 0;
   background: rgba(0, 0, 0, 0.75);
-  display: none;
+  display: flex;
   align-items: center;
   justify-content: center;
   z-index: 200;
   padding: 20px;
-  backdrop-filter: blur(8px);
+  visibility: hidden;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s ease, visibility 0.2s ease;
 }
 
 .modal-overlay.is-open {
-  display: flex;
+  visibility: visible;
+  opacity: 1;
+  pointer-events: auto;
 }
 
 .modal {
-  background: rgba(14, 13, 18, 0.96);
+  background: rgba(14, 13, 18, 0.98);
   border: 1px solid var(--line2);
   border-radius: 10px;
   padding: 24px;
   width: 100%;
   max-width: 360px;
   box-shadow: var(--shadow-lg);
-  backdrop-filter: blur(20px);
+  position: relative;
+  z-index: 1;
+  overflow: visible;
 }
 
 .modal-desc {

@@ -5,6 +5,7 @@ let currentLightboxId = null;
 let publicBaseUrl = null;
 let googleClientId = null;
 let googleInitialized = false;
+let googleButtonRendered = false;
 
 const form = document.getElementById('uploadForm');
 const imageInput = document.getElementById('image');
@@ -31,6 +32,7 @@ const memberLabel = document.getElementById('memberLabel');
 const memberModal = document.getElementById('memberModal');
 const cancelMemberLogin = document.getElementById('cancelMemberLogin');
 const googleSetupHint = document.getElementById('googleSetupHint');
+const googleLoginFallback = document.getElementById('googleLoginFallback');
 const loginModal = document.getElementById('loginModal');
 const loginForm = document.getElementById('loginForm');
 const adminPassword = document.getElementById('adminPassword');
@@ -112,6 +114,7 @@ adminLogoutBtn.addEventListener('click', async () => {
 });
 
 memberLoginBtn.addEventListener('click', openMemberModal);
+googleLoginFallback?.addEventListener('click', triggerGoogleSignIn);
 cancelMemberLogin.addEventListener('click', closeMemberModal);
 memberModal.addEventListener('click', e => {
   if (e.target === memberModal) closeMemberModal();
@@ -159,7 +162,7 @@ document.addEventListener('keydown', e => {
 
 function openMemberModal() {
   memberModal.classList.add('is-open');
-  renderGoogleButton();
+  ensureGoogleLoginReady();
 }
 
 function closeMemberModal() {
@@ -214,20 +217,34 @@ async function handleGoogleCredential(response) {
   }
 }
 
+function googlePromptReasonMessage(reason) {
+  const messages = {
+    browser_not_supported: '瀏覽器不支援 Google 登入，請改用 Chrome 或 Edge',
+    invalid_client: 'Google Client ID 設定錯誤，請檢查 OAuth 設定',
+    missing_client_id: '尚未設定 Google Client ID',
+    opt_out_or_no_session: '請允許第三方登入或 Cookie，然後重新整理頁面',
+    secure_http_required: 'Google 登入需要 HTTPS 網址',
+    suppressed_by_user: 'Google 登入已遭封鎖，請關閉廣告阻擋或隱私外掛',
+    unregistered_origin: '網址未加入 Google OAuth 授權來源，請到 Google Console 加入此網域',
+    unknown_reason: 'Google 登入暫時無法使用，請稍後再試',
+  };
+  return messages[reason] || `Google 登入失敗：${reason}`;
+}
+
 function setupGoogleAuth() {
-  if (!googleClientId || googleInitialized) return false;
+  if (!googleClientId || googleInitialized) return !!googleInitialized;
 
   if (!window.google?.accounts?.id) {
-    setTimeout(setupGoogleAuth, 300);
     return false;
   }
 
   google.accounts.id.initialize({
     client_id: googleClientId,
     callback: handleGoogleCredential,
-    auto_select: true,
+    auto_select: false,
     context: 'signin',
     itp_support: true,
+    use_fedcm_for_prompt: false,
   });
 
   googleInitialized = true;
@@ -235,30 +252,108 @@ function setupGoogleAuth() {
   return true;
 }
 
-function renderGoogleButton() {
-  const btnContainer = document.getElementById('googleSignInBtn');
-  btnContainer.innerHTML = '';
+function showFallbackGoogleButton(show = true) {
+  if (!googleLoginFallback) return;
+  googleLoginFallback.hidden = !show;
+}
 
+function triggerGoogleSignIn() {
   if (!googleClientId) {
     googleSetupHint.hidden = false;
+    showToast('Google 登入尚未設定', 'error');
     return;
   }
 
   if (!setupGoogleAuth()) {
-    btnContainer.innerHTML = '<span class="modal-hint">載入 Google 登入中...</span>';
-    setTimeout(renderGoogleButton, 400);
+    showToast('Google 登入載入中，請稍候', 'error');
+    ensureGoogleLoginReady();
     return;
   }
 
-  google.accounts.id.renderButton(btnContainer, {
-    theme: 'filled_black',
-    size: 'large',
-    width: Math.min(320, window.innerWidth - 80),
-    text: 'continue_with',
-    locale: 'zh-TW',
-    shape: 'pill',
-    logo_alignment: 'left',
+  googleLoginFallback.disabled = true;
+  window.setTimeout(() => {
+    googleLoginFallback.disabled = false;
+  }, 3000);
+
+  google.accounts.id.prompt(notification => {
+    if (!notification) return;
+
+    if (notification.isNotDisplayed()) {
+      showToast(googlePromptReasonMessage(notification.getNotDisplayedReason()), 'error');
+      return;
+    }
+
+    if (notification.isSkippedMoment()) {
+      const reason = notification.getSkippedReason();
+      if (reason === 'user_cancel' || reason === 'tap_outside') return;
+      showToast(googlePromptReasonMessage(reason), 'error');
+    }
   });
+}
+
+function renderGoogleButton() {
+  const btnContainer = document.getElementById('googleSignInBtn');
+  if (!btnContainer || !googleClientId) {
+    googleSetupHint.hidden = false;
+    showFallbackGoogleButton(false);
+    return;
+  }
+
+  if (!setupGoogleAuth()) {
+    showFallbackGoogleButton(true);
+    return;
+  }
+
+  if (googleButtonRendered && btnContainer.childElementCount > 0) {
+    showFallbackGoogleButton(false);
+    return;
+  }
+
+  btnContainer.innerHTML = '';
+  showFallbackGoogleButton(true);
+  googleLoginFallback.disabled = false;
+
+  try {
+    google.accounts.id.renderButton(btnContainer, {
+      theme: 'filled_black',
+      size: 'large',
+      width: 320,
+      text: 'continue_with',
+      locale: 'zh-TW',
+      shape: 'pill',
+      logo_alignment: 'left',
+      click_listener: () => {
+        showFallbackGoogleButton(false);
+      },
+    });
+    googleButtonRendered = true;
+
+    window.setTimeout(() => {
+      const iframe = btnContainer.querySelector('iframe');
+      if (iframe) {
+        showFallbackGoogleButton(false);
+      }
+    }, 1200);
+  } catch {
+    showFallbackGoogleButton(true);
+  }
+}
+
+function ensureGoogleLoginReady() {
+  if (!googleClientId) {
+    googleSetupHint.hidden = false;
+    showFallbackGoogleButton(false);
+    return;
+  }
+
+  if (!window.google?.accounts?.id) {
+    showFallbackGoogleButton(true);
+    window.setTimeout(ensureGoogleLoginReady, 300);
+    return;
+  }
+
+  setupGoogleAuth();
+  renderGoogleButton();
 }
 
 function showGoogleOneTap() {
@@ -267,7 +362,12 @@ function showGoogleOneTap() {
     setTimeout(showGoogleOneTap, 500);
     return;
   }
-  google.accounts.id.prompt();
+  google.accounts.id.prompt(notification => {
+    if (!notification?.isNotDisplayed()) return;
+    const reason = notification.getNotDisplayedReason();
+    if (reason === 'suppressed_by_user' || reason === 'opt_out_or_no_session') return;
+    console.info('Google One Tap:', reason);
+  });
 }
 
 async function checkMemberStatus() {
@@ -376,7 +476,7 @@ async function loadSiteConfig() {
     const data = await res.json();
     publicBaseUrl = data.publicUrl || null;
     googleClientId = data.googleClientId || null;
-    if (googleClientId) setupGoogleAuth();
+    if (googleClientId) ensureGoogleLoginReady();
 
     if (publicBaseUrl) {
       publicUrlLabel.textContent = `PUBLIC: ${publicBaseUrl.replace('https://', '')}`;
