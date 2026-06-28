@@ -24,6 +24,7 @@ const submitBtn = document.getElementById('submitBtn');
 const toast = document.getElementById('toast');
 const uploadSection = document.getElementById('uploadSection');
 const loginBtn = document.getElementById('loginBtn');
+const changePasswordBtn = document.getElementById('changePasswordBtn');
 const adminLogoutBtn = document.getElementById('adminLogoutBtn');
 const cartBtn = document.getElementById('cartBtn');
 const cartBadge = document.getElementById('cartBadge');
@@ -38,6 +39,12 @@ const copyCartBtn = document.getElementById('copyCartBtn');
 const recentSection = document.getElementById('recentSection');
 const recentGrid = document.getElementById('recentGrid');
 const clearHistoryBtn = document.getElementById('clearHistoryBtn');
+const passwordModal = document.getElementById('passwordModal');
+const passwordForm = document.getElementById('passwordForm');
+const currentPassword = document.getElementById('currentPassword');
+const newPassword = document.getElementById('newPassword');
+const confirmPassword = document.getElementById('confirmPassword');
+const cancelPassword = document.getElementById('cancelPassword');
 const loginModal = document.getElementById('loginModal');
 const loginForm = document.getElementById('loginForm');
 const adminPassword = document.getElementById('adminPassword');
@@ -358,7 +365,54 @@ function closeLoginModal() {
   loginModal.classList.remove('is-open');
 }
 
+function openPasswordModal() {
+  passwordForm.reset();
+  passwordModal.classList.add('is-open');
+  currentPassword.focus();
+}
+
+function closePasswordModal() {
+  passwordModal.classList.remove('is-open');
+  passwordForm.reset();
+}
+
 loginBtn.addEventListener('click', openLoginModal);
+changePasswordBtn.addEventListener('click', openPasswordModal);
+cancelPassword.addEventListener('click', closePasswordModal);
+passwordModal.addEventListener('click', e => {
+  if (e.target === passwordModal) closePasswordModal();
+});
+
+passwordForm.addEventListener('submit', async e => {
+  e.preventDefault();
+
+  if (newPassword.value !== confirmPassword.value) {
+    showToast('兩次輸入的新密碼不一致', 'error');
+    return;
+  }
+
+  try {
+    const res = await fetch('/api/admin/change-password', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        currentPassword: currentPassword.value,
+        newPassword: newPassword.value,
+      }),
+      ...fetchOpts,
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || '密碼變更失敗');
+
+    closePasswordModal();
+    setAdminMode(false);
+    showToast('密碼已更新，請用新密碼重新登入');
+    openLoginModal();
+  } catch (err) {
+    showToast(err.message, 'error');
+  }
+});
+
 cancelLogin.addEventListener('click', closeLoginModal);
 loginModal.addEventListener('click', e => {
   if (e.target === loginModal) closeLoginModal();
@@ -516,6 +570,7 @@ editForm.addEventListener('submit', async e => {
 
 document.addEventListener('keydown', e => {
   if (e.key === 'Escape') {
+    closePasswordModal();
     closeEditModal();
     closeImageLightbox();
     closeLoginModal();
@@ -534,6 +589,7 @@ function setAdminMode(admin) {
   uploadSection.classList.toggle('is-visible', admin);
   uploadSection.hidden = !admin;
   loginBtn.hidden = admin;
+  changePasswordBtn.hidden = !admin;
   adminLogoutBtn.hidden = !admin;
   subtitle.textContent = admin ? '管理員模式' : '瀏覽精選商品';
   modeLabel.textContent = admin ? 'ADMIN' : 'VIEWER';

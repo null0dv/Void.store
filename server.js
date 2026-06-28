@@ -72,6 +72,23 @@ function verifyPassword(password) {
   return crypto.timingSafeEqual(Buffer.from(testHash), Buffer.from(config.hash));
 }
 
+function setAdminPassword(password) {
+  const salt = crypto.randomBytes(16).toString('hex');
+  const config = { salt, hash: hashPassword(password, salt) };
+  fs.writeFileSync(adminConfigFile, JSON.stringify(config, null, 2), 'utf-8');
+}
+
+function changeAdminPassword(currentPassword, newPassword) {
+  if (!currentPassword || !verifyPassword(currentPassword)) {
+    return { ok: false, error: '目前密碼錯誤' };
+  }
+  if (!newPassword || String(newPassword).length < 4) {
+    return { ok: false, error: '新密碼至少 4 個字元' };
+  }
+  setAdminPassword(newPassword);
+  return { ok: true };
+}
+
 function parseCookies(req) {
   const cookies = {};
   (req.headers.cookie || '').split(';').forEach(pair => {
@@ -178,6 +195,19 @@ app.post('/api/admin/logout', (req, res) => {
   if (token) adminSessions.delete(token);
   res.clearCookie('admin_token');
   res.json({ success: true });
+});
+
+app.post('/api/admin/change-password', requireAdmin, (req, res) => {
+  const { currentPassword, newPassword } = req.body || {};
+  const result = changeAdminPassword(currentPassword, newPassword);
+  if (!result.ok) {
+    return res.status(400).json({ error: result.error });
+  }
+
+  const token = parseCookies(req).admin_token;
+  if (token) adminSessions.delete(token);
+  res.clearCookie('admin_token');
+  res.json({ success: true, reauth: true });
 });
 
 app.post('/api/products', requireAdmin, upload.single('image'), async (req, res) => {

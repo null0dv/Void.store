@@ -21,6 +21,7 @@
       <button class="tb-btn tb-btn-line" id="lineGroupBtn" type="button" hidden>LINE 群組</button>
       <button class="tb-btn" id="cartBtn" type="button">CART <span class="cart-badge" id="cartBadge" hidden>0</span></button>
       <button class="tb-btn tb-btn-null" id="loginBtn" type="button">_null</button>
+      <button class="tb-btn" id="changePasswordBtn" type="button" hidden>PASSWORD</button>
       <button class="tb-btn" id="adminLogoutBtn" type="button" hidden>LOGOUT</button>
     </div>
   </header>
@@ -218,6 +219,28 @@
             <span class="btn-text">儲存</span>
             <span class="btn-loading" hidden>儲存中...</span>
           </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div class="modal-overlay" id="passwordModal">
+    <div class="modal">
+      <div class="sec-label">更改密碼</div>
+      <p class="modal-desc">變更 _null 管理員登入密碼</p>
+      <form id="passwordForm">
+        <label class="field-label" for="currentPassword">目前密碼</label>
+        <input class="field-input" type="password" id="currentPassword" autocomplete="current-password" required>
+
+        <label class="field-label" for="newPassword">新密碼</label>
+        <input class="field-input" type="password" id="newPassword" autocomplete="new-password" minlength="4" required>
+
+        <label class="field-label" for="confirmPassword">確認新密碼</label>
+        <input class="field-input" type="password" id="confirmPassword" autocomplete="new-password" minlength="4" required>
+
+        <div class="modal-actions">
+          <button type="button" class="tb-btn" id="cancelPassword">取消</button>
+          <button type="submit" class="gen-btn gen-btn-sm">儲存</button>
         </div>
       </form>
     </div>
