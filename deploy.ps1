@@ -24,8 +24,8 @@ Write-Host "  4. 連接 GitHub 倉庫 void-store"
 Write-Host "  5. Render 會自動讀取 render.yaml 並部署"
 Write-Host ""
 Write-Host "步驟 4：設定環境變數（Render 控制台）" -ForegroundColor Yellow
-Write-Host "  ADMIN_PASSWORD     = 你的管理員密碼（_null 登入用）"
-Write-Host "  GOOGLE_CLIENT_ID   = Google OAuth Client ID（選填）"
+Write-Host "  ADMIN_PASSWORD              = 你的管理員密碼（_null 登入用）"
+Write-Host "  SUPABASE_SERVICE_ROLE_KEY   = Supabase 金鑰（商品持久化，選填）"
 Write-Host ""
 Write-Host "步驟 5：取得固定網址" -ForegroundColor Yellow
 Write-Host "  部署完成後網址格式：https://void-store.onrender.com"

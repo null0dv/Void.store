@@ -3,7 +3,6 @@ const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
 const crypto = require('crypto');
-const { OAuth2Client } = require('google-auth-library');
 const productStore = require('./lib/product-store');
 
 const app = express();
@@ -12,25 +11,19 @@ const IS_PRODUCTION = process.env.NODE_ENV === 'production';
 
 app.set('trust proxy', 1);
 const SESSION_MAX_AGE = 24 * 60 * 60 * 1000;
-const MEMBER_SESSION_MAX_AGE = 7 * 24 * 60 * 60 * 1000;
 
 const uploadsDir = path.join(__dirname, 'uploads');
 const dataDir = path.join(__dirname, 'data');
-
-const membersFile = path.join(dataDir, 'members.json');
 const adminConfigFile = path.join(dataDir, 'admin-config.json');
 const siteConfigFile = path.join(dataDir, 'site-config.json');
-const googleConfigFile = path.join(dataDir, 'google-config.json');
 
 const adminSessions = new Map();
-const memberSessions = new Map();
 
 if (!fs.existsSync(uploadsDir)) fs.mkdirSync(uploadsDir, { recursive: true });
 if (!fs.existsSync(dataDir)) fs.mkdirSync(dataDir, { recursive: true });
-
-if (!fs.existsSync(membersFile)) fs.writeFileSync(membersFile, '[]', 'utf-8');
-if (!fs.existsSync(siteConfigFile)) fs.writeFileSync(siteConfigFile, JSON.stringify({ publicUrl: null }, null, 2), 'utf-8');
-if (!fs.existsSync(googleConfigFile)) fs.writeFileSync(googleConfigFile, JSON.stringify({ clientId: '' }, null, 2), 'utf-8');
+if (!fs.existsSync(siteConfigFile)) {
+  fs.writeFileSync(siteConfigFile, JSON.stringify({ publicUrl: null }, null, 2), 'utf-8');
+}
 
 function getPublicUrl() {
   if (process.env.PUBLIC_URL) return process.env.PUBLIC_URL.replace(/\/$/, '');
@@ -44,34 +37,6 @@ function readSiteConfig() {
   const publicUrl = getPublicUrl();
   if (publicUrl) config.publicUrl = publicUrl;
   return config;
-}
-
-function readGoogleConfig() {
-  const config = JSON.parse(fs.readFileSync(googleConfigFile, 'utf-8'));
-  if (process.env.GOOGLE_CLIENT_ID) config.clientId = process.env.GOOGLE_CLIENT_ID;
-  return config;
-}
-
-function readMembers() {
-  return JSON.parse(fs.readFileSync(membersFile, 'utf-8'));
-}
-
-function writeMembers(members) {
-  fs.writeFileSync(membersFile, JSON.stringify(members, null, 2), 'utf-8');
-}
-
-function upsertMember({ email, name, picture, googleId }) {
-  const members = readMembers();
-  const now = new Date().toLocaleString('zh-TW', { timeZone: 'Asia/Taipei' });
-  const index = members.findIndex(m => m.email === email);
-
-  if (index === -1) {
-    members.push({ email, name, picture, googleId, firstLogin: now, lastLogin: now });
-  } else {
-    members[index] = { ...members[index], name, picture, googleId, lastLogin: now };
-  }
-
-  writeMembers(members);
 }
 
 function hashPassword(password, salt) {
@@ -126,22 +91,6 @@ function isValidAdminSession(token) {
   return true;
 }
 
-function createMemberSession(member) {
-  const token = crypto.randomBytes(32).toString('hex');
-  memberSessions.set(token, { ...member, createdAt: Date.now() });
-  return token;
-}
-
-function getMemberSession(token) {
-  if (!token || !memberSessions.has(token)) return null;
-  const session = memberSessions.get(token);
-  if (Date.now() - session.createdAt > MEMBER_SESSION_MAX_AGE) {
-    memberSessions.delete(token);
-    return null;
-  }
-  return session;
-}
-
 function requireAdmin(req, res, next) {
   const token = parseCookies(req).admin_token;
   if (isValidAdminSession(token)) return next();
@@ -178,11 +127,9 @@ app.get('/api/health', (req, res) => {
 
 app.get('/api/config', (req, res) => {
   const site = readSiteConfig();
-  const google = readGoogleConfig();
-  const publicUrl = site.publicUrl || (req.protocol + '://' + req.get('host'));
+  const publicUrl = site.publicUrl || `${req.protocol}://${req.get('host')}`;
   res.json({
     publicUrl,
-    googleClientId: google.clientId || null,
     isProduction: IS_PRODUCTION,
     persistentStorage: productStore.usesPersistentStorage(),
     storageBackend: productStore.usesSupabase() ? 'supabase' : 'local',
@@ -225,62 +172,6 @@ app.post('/api/admin/logout', (req, res) => {
   res.json({ success: true });
 });
 
-app.get('/api/member/status', (req, res) => {
-  const member = getMemberSession(parseCookies(req).member_token);
-  if (!member) return res.json({ isLoggedIn: false });
-  res.json({
-    isLoggedIn: true,
-    member: { email: member.email, name: member.name, picture: member.picture },
-  });
-});
-
-app.post('/api/member/google', async (req, res) => {
-  const { credential } = req.body;
-  const googleConfig = readGoogleConfig();
-
-  if (!googleConfig.clientId) {
-    return res.status(503).json({ error: 'Google 登入尚未設定，請填入 Client ID' });
-  }
-  if (!credential) {
-    return res.status(400).json({ error: '缺少登入憑證' });
-  }
-
-  try {
-    const client = new OAuth2Client(googleConfig.clientId);
-    const ticket = await client.verifyIdToken({
-      idToken: credential,
-      audience: googleConfig.clientId,
-    });
-    const payload = ticket.getPayload();
-    const email = payload.email;
-    const name = payload.name || email;
-    const picture = payload.picture || null;
-    const googleId = payload.sub;
-
-    if (!email) return res.status(400).json({ error: '無法取得 Email' });
-
-    upsertMember({ email, name, picture, googleId });
-
-    const token = createMemberSession({ email, name, picture, googleId });
-    res.cookie('member_token', token, {
-      httpOnly: true,
-      sameSite: 'lax',
-      maxAge: MEMBER_SESSION_MAX_AGE,
-    });
-
-    res.json({ success: true, member: { email, name, picture } });
-  } catch {
-    res.status(401).json({ error: 'Google 登入驗證失敗' });
-  }
-});
-
-app.post('/api/member/logout', (req, res) => {
-  const token = parseCookies(req).member_token;
-  if (token) memberSessions.delete(token);
-  res.clearCookie('member_token');
-  res.json({ success: true });
-});
-
 app.post('/api/products', requireAdmin, upload.single('image'), async (req, res) => {
   const { name, description, price, category } = req.body;
 
@@ -315,10 +206,6 @@ app.listen(PORT, '0.0.0.0', () => {
   const publicUrl = getPublicUrl();
   console.log(`商品上傳網站已啟動：http://localhost:${PORT}`);
   if (publicUrl) console.log(`公開網址：${publicUrl}`);
-  const google = readGoogleConfig();
-  if (!google.clientId) {
-    console.log('提示：設定 GOOGLE_CLIENT_ID 環境變數以啟用會員登入');
-  }
   if (IS_PRODUCTION && !productStore.usesSupabase()) {
     console.log('警告：未設定 Supabase，雲端商品會在重新部署或休眠後消失');
   } else if (productStore.usesSupabase()) {

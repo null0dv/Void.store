@@ -1,12 +1,12 @@
 let isAdmin = false;
-let isMember = false;
 let allProducts = [];
 let currentLightboxId = null;
 let publicBaseUrl = null;
-let googleClientId = null;
-let googleInitialized = false;
-let googleButtonRendered = false;
 let persistentStorage = true;
+
+const CART_KEY = 'void-store-cart';
+const HISTORY_KEY = 'void-store-history';
+const MAX_HISTORY = 12;
 
 const form = document.getElementById('uploadForm');
 const imageInput = document.getElementById('image');
@@ -17,7 +17,6 @@ const previewImg = document.getElementById('previewImg');
 const browseBtn = document.getElementById('browseBtn');
 const removeImageBtn = document.getElementById('removeImage');
 const productsGrid = document.getElementById('productsGrid');
-const emptyState = document.getElementById('emptyState');
 const productCount = document.getElementById('productCount');
 const modeLabel = document.getElementById('modeLabel');
 const submitBtn = document.getElementById('submitBtn');
@@ -25,15 +24,19 @@ const toast = document.getElementById('toast');
 const uploadSection = document.getElementById('uploadSection');
 const loginBtn = document.getElementById('loginBtn');
 const adminLogoutBtn = document.getElementById('adminLogoutBtn');
-const memberLoginBtn = document.getElementById('memberLoginBtn');
-const memberLogoutBtn = document.getElementById('memberLogoutBtn');
-const memberChip = document.getElementById('memberChip');
-const memberAvatar = document.getElementById('memberAvatar');
-const memberLabel = document.getElementById('memberLabel');
-const memberModal = document.getElementById('memberModal');
-const cancelMemberLogin = document.getElementById('cancelMemberLogin');
-const googleSetupHint = document.getElementById('googleSetupHint');
-const googleLoginFallback = document.getElementById('googleLoginFallback');
+const cartBtn = document.getElementById('cartBtn');
+const cartBadge = document.getElementById('cartBadge');
+const cartDrawerBg = document.getElementById('cartDrawerBg');
+const cartDrawer = document.getElementById('cartDrawer');
+const cartList = document.getElementById('cartList');
+const cartFooter = document.getElementById('cartFooter');
+const cartTotal = document.getElementById('cartTotal');
+const closeCartBtn = document.getElementById('closeCartBtn');
+const clearCartBtn = document.getElementById('clearCartBtn');
+const copyCartBtn = document.getElementById('copyCartBtn');
+const recentSection = document.getElementById('recentSection');
+const recentGrid = document.getElementById('recentGrid');
+const clearHistoryBtn = document.getElementById('clearHistoryBtn');
 const loginModal = document.getElementById('loginModal');
 const loginForm = document.getElementById('loginForm');
 const adminPassword = document.getElementById('adminPassword');
@@ -47,10 +50,207 @@ const lightboxCategory = document.getElementById('lightboxCategory');
 const lightboxName = document.getElementById('lightboxName');
 const lightboxDesc = document.getElementById('lightboxDesc');
 const lightboxPrice = document.getElementById('lightboxPrice');
+const lightboxCartBtn = document.getElementById('lightboxCartBtn');
 const lightboxShareBtn = document.getElementById('lightboxShareBtn');
 const publicUrlLabel = document.getElementById('publicUrlLabel');
 
 const fetchOpts = { credentials: 'include', cache: 'no-store' };
+
+function readStorage(key, fallback) {
+  try {
+    const raw = localStorage.getItem(key);
+    return raw ? JSON.parse(raw) : fallback;
+  } catch {
+    return fallback;
+  }
+}
+
+function writeStorage(key, value) {
+  localStorage.setItem(key, JSON.stringify(value));
+}
+
+function getCart() {
+  return readStorage(CART_KEY, []);
+}
+
+function saveCart(cart) {
+  writeStorage(CART_KEY, cart);
+  updateCartBadge();
+  renderCartDrawer();
+}
+
+function getHistory() {
+  return readStorage(HISTORY_KEY, []);
+}
+
+function saveHistory(ids) {
+  writeStorage(HISTORY_KEY, ids);
+  renderRecentSection();
+}
+
+function cartCount() {
+  return getCart().reduce((sum, item) => sum + item.qty, 0);
+}
+
+function updateCartBadge() {
+  const count = cartCount();
+  cartBadge.textContent = String(count);
+  cartBadge.hidden = count === 0;
+}
+
+function addToCart(productId) {
+  const product = allProducts.find(p => p.id === productId);
+  if (!product) return;
+
+  const cart = getCart();
+  const index = cart.findIndex(item => item.id === productId);
+  if (index === -1) {
+    cart.push({ id: productId, qty: 1 });
+  } else {
+    cart[index].qty += 1;
+  }
+  saveCart(cart);
+  showToast(`已加入購物車：${product.name}`);
+}
+
+function removeFromCart(productId) {
+  saveCart(getCart().filter(item => item.id !== productId));
+}
+
+function changeCartQty(productId, delta) {
+  const cart = getCart();
+  const index = cart.findIndex(item => item.id === productId);
+  if (index === -1) return;
+
+  cart[index].qty += delta;
+  if (cart[index].qty <= 0) cart.splice(index, 1);
+  saveCart(cart);
+}
+
+function clearCart() {
+  saveCart([]);
+  showToast('購物車已清空');
+}
+
+function recordView(productId) {
+  const ids = getHistory().filter(id => id !== productId);
+  ids.unshift(productId);
+  saveHistory(ids.slice(0, MAX_HISTORY));
+}
+
+function clearHistory() {
+  saveHistory([]);
+  showToast('瀏覽紀錄已清除');
+}
+
+function openCartDrawer() {
+  cartDrawerBg.classList.add('is-open');
+  document.body.style.overflow = 'hidden';
+  renderCartDrawer();
+}
+
+function closeCartDrawer() {
+  cartDrawerBg.classList.remove('is-open');
+  document.body.style.overflow = imageLightbox.classList.contains('is-open') ? 'hidden' : '';
+}
+
+function getCartSummaryText() {
+  const cart = getCart();
+  if (cart.length === 0) return '';
+
+  const lines = ['VOID.STORE 購物車清單'];
+  let total = 0;
+
+  cart.forEach(item => {
+    const product = allProducts.find(p => p.id === item.id);
+    if (!product) return;
+    const subtotal = product.price * item.qty;
+    total += subtotal;
+    lines.push(`- ${product.name} x${item.qty}  NT$ ${formatPrice(subtotal)}`);
+  });
+
+  lines.push(`合計 NT$ ${formatPrice(total)}`);
+  return lines.join('\n');
+}
+
+function renderCartDrawer() {
+  const cart = getCart();
+  if (cart.length === 0) {
+    cartList.innerHTML = '<p class="cart-empty">購物車是空的</p>';
+    cartFooter.hidden = true;
+    return;
+  }
+
+  let total = 0;
+  cartList.innerHTML = cart.map(item => {
+    const product = allProducts.find(p => p.id === item.id);
+    if (!product) return '';
+
+    const subtotal = product.price * item.qty;
+    total += subtotal;
+    return `
+      <article class="cart-item" data-id="${product.id}">
+        <div class="cart-item-main">
+          <div class="cart-item-name">${escapeHtml(product.name)}</div>
+          <div class="cart-item-meta">NT$ ${formatPrice(product.price)} · ${escapeHtml(product.category)}</div>
+        </div>
+        <div class="cart-item-controls">
+          <button type="button" class="qty-btn" data-action="dec" data-id="${product.id}">−</button>
+          <span class="qty-value">${item.qty}</span>
+          <button type="button" class="qty-btn" data-action="inc" data-id="${product.id}">+</button>
+          <button type="button" class="qty-btn qty-btn-remove" data-action="remove" data-id="${product.id}">✕</button>
+        </div>
+      </article>
+    `;
+  }).join('');
+
+  cartTotal.textContent = `NT$ ${formatPrice(total)}`;
+  cartFooter.hidden = false;
+
+  cartList.querySelectorAll('[data-action]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const id = Number(btn.dataset.id);
+      if (btn.dataset.action === 'inc') changeCartQty(id, 1);
+      else if (btn.dataset.action === 'dec') changeCartQty(id, -1);
+      else if (btn.dataset.action === 'remove') removeFromCart(id);
+    });
+  });
+}
+
+function renderRecentCard(product) {
+  const imageHtml = product.image
+    ? `<img src="${product.image}" alt="${escapeHtml(product.name)}">`
+    : '<div class="recent-placeholder">◌</div>';
+
+  return `
+    <button type="button" class="recent-card" data-id="${product.id}">
+      <div class="recent-thumb">${imageHtml}</div>
+      <span class="recent-name">${escapeHtml(product.name)}</span>
+    </button>
+  `;
+}
+
+function renderRecentSection() {
+  const ids = getHistory();
+  const products = ids
+    .map(id => allProducts.find(p => p.id === id))
+    .filter(Boolean);
+
+  if (products.length === 0) {
+    recentSection.hidden = true;
+    recentGrid.innerHTML = '';
+    return;
+  }
+
+  recentSection.hidden = false;
+  recentGrid.innerHTML = products.map(renderRecentCard).join('');
+  recentGrid.querySelectorAll('.recent-card').forEach(card => {
+    card.addEventListener('click', () => {
+      const product = allProducts.find(p => p.id === Number(card.dataset.id));
+      if (product) openImageLightbox(product);
+    });
+  });
+}
 
 browseBtn.addEventListener('click', () => imageInput.click());
 
@@ -107,24 +307,29 @@ loginModal.addEventListener('click', e => {
   if (e.target === loginModal) closeLoginModal();
 });
 
+cartBtn.addEventListener('click', openCartDrawer);
+closeCartBtn.addEventListener('click', closeCartDrawer);
+cartDrawerBg.addEventListener('click', e => {
+  if (e.target === cartDrawerBg) closeCartDrawer();
+});
+clearCartBtn.addEventListener('click', clearCart);
+clearHistoryBtn.addEventListener('click', clearHistory);
+copyCartBtn.addEventListener('click', async () => {
+  const text = getCartSummaryText();
+  if (!text) return;
+  try {
+    await navigator.clipboard.writeText(text);
+    showToast('購物車清單已複製');
+  } catch {
+    showToast('複製失敗', 'error');
+  }
+});
+
 adminLogoutBtn.addEventListener('click', async () => {
   await fetch('/api/admin/logout', { method: 'POST', ...fetchOpts });
   setAdminMode(false);
   showToast('管理員已登出');
   loadProducts();
-});
-
-memberLoginBtn.addEventListener('click', openMemberModal);
-googleLoginFallback?.addEventListener('click', triggerGoogleSignIn);
-cancelMemberLogin.addEventListener('click', closeMemberModal);
-memberModal.addEventListener('click', e => {
-  if (e.target === memberModal) closeMemberModal();
-});
-
-memberLogoutBtn.addEventListener('click', async () => {
-  await fetch('/api/member/logout', { method: 'POST', ...fetchOpts });
-  setMemberMode(false);
-  showToast('會員已登出');
 });
 
 loginForm.addEventListener('submit', async e => {
@@ -152,6 +357,9 @@ loginForm.addEventListener('submit', async e => {
 });
 
 closeLightboxBtn.addEventListener('click', closeImageLightbox);
+lightboxCartBtn.addEventListener('click', () => {
+  if (currentLightboxId) addToCart(currentLightboxId);
+});
 lightboxShareBtn.addEventListener('click', () => {
   if (currentLightboxId) shareProduct(currentLightboxId);
 });
@@ -160,204 +368,9 @@ document.addEventListener('keydown', e => {
   if (e.key === 'Escape') {
     closeImageLightbox();
     closeLoginModal();
-    closeMemberModal();
+    closeCartDrawer();
   }
 });
-
-function openMemberModal() {
-  memberModal.classList.add('is-open');
-  ensureGoogleLoginReady();
-}
-
-function closeMemberModal() {
-  memberModal.classList.remove('is-open');
-}
-
-function setMemberMode(loggedIn, member = null) {
-  isMember = loggedIn;
-  memberLoginBtn.hidden = loggedIn;
-  memberLogoutBtn.hidden = !loggedIn;
-  memberChip.hidden = !loggedIn;
-
-  if (loggedIn && member) {
-    const label = member.name || member.email;
-    memberLabel.textContent = label.length > 12 ? `${label.slice(0, 12)}…` : label;
-    memberChip.title = member.email;
-    if (member.picture) {
-      memberAvatar.src = member.picture;
-      memberAvatar.hidden = false;
-    } else {
-      memberAvatar.hidden = true;
-    }
-    if (!isAdmin) subtitle.textContent = '會員已登入';
-  } else {
-    memberAvatar.hidden = true;
-    memberLabel.textContent = '';
-    if (!isAdmin) subtitle.textContent = '瀏覽精選商品';
-  }
-
-  if (!isAdmin) {
-    modeLabel.textContent = loggedIn ? 'MEMBER' : 'VIEWER';
-    modeLabel.classList.toggle('ok', loggedIn);
-  }
-}
-
-async function handleGoogleCredential(response) {
-  try {
-    const res = await fetch('/api/member/google', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ credential: response.credential }),
-      ...fetchOpts,
-    });
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.error || '登入失敗');
-
-    closeMemberModal();
-    setMemberMode(true, data.member);
-    showToast(`歡迎，${data.member.name || data.member.email}`);
-  } catch (err) {
-    showToast(err.message, 'error');
-  }
-}
-
-function googlePromptReasonMessage(reason) {
-  const messages = {
-    browser_not_supported: '瀏覽器不支援 Google 登入，請改用 Chrome 或 Edge',
-    invalid_client: 'Google Client ID 設定錯誤，請檢查 OAuth 設定',
-    missing_client_id: '尚未設定 Google Client ID',
-    opt_out_or_no_session: '請允許第三方登入或 Cookie，然後重新整理頁面',
-    secure_http_required: 'Google 登入需要 HTTPS 網址',
-    suppressed_by_user: 'Google 登入已遭封鎖，請關閉廣告阻擋或隱私外掛',
-    unregistered_origin: '網址未加入 Google OAuth 授權來源，請到 Google Console 加入此網域',
-    unknown_reason: 'Google 登入暫時無法使用，請稍後再試',
-  };
-  return messages[reason] || `Google 登入失敗：${reason}`;
-}
-
-function setupGoogleAuth() {
-  if (!googleClientId || googleInitialized) return !!googleInitialized;
-
-  if (!window.google?.accounts?.id) {
-    return false;
-  }
-
-  google.accounts.id.initialize({
-    client_id: googleClientId,
-    callback: handleGoogleCredential,
-    auto_select: false,
-    context: 'signin',
-    itp_support: true,
-    use_fedcm_for_prompt: false,
-  });
-
-  googleInitialized = true;
-  googleSetupHint.hidden = true;
-  return true;
-}
-
-function showFallbackGoogleButton(show = true) {
-  if (!googleLoginFallback) return;
-  googleLoginFallback.hidden = !show;
-}
-
-function triggerGoogleSignIn() {
-  if (!googleClientId) {
-    googleSetupHint.hidden = false;
-    showToast('Google 登入尚未設定', 'error');
-    return;
-  }
-
-  if (!setupGoogleAuth()) {
-    showToast('Google 登入載入中，請稍候', 'error');
-    ensureGoogleLoginReady();
-    return;
-  }
-
-  googleLoginFallback.disabled = true;
-  window.setTimeout(() => {
-    googleLoginFallback.disabled = false;
-  }, 3000);
-
-  google.accounts.id.prompt(notification => {
-    if (!notification) return;
-
-    if (notification.isNotDisplayed()) {
-      showToast(googlePromptReasonMessage(notification.getNotDisplayedReason()), 'error');
-      return;
-    }
-
-    if (notification.isSkippedMoment()) {
-      const reason = notification.getSkippedReason();
-      if (reason === 'user_cancel' || reason === 'tap_outside') return;
-      showToast(googlePromptReasonMessage(reason), 'error');
-    }
-  });
-}
-
-function renderGoogleButton() {
-  const btnContainer = document.getElementById('googleSignInBtn');
-  if (!btnContainer || !googleClientId) {
-    googleSetupHint.hidden = false;
-    showFallbackGoogleButton(false);
-    return;
-  }
-
-  if (!setupGoogleAuth()) {
-    showFallbackGoogleButton(true);
-    return;
-  }
-
-  btnContainer.innerHTML = '';
-  btnContainer.hidden = true;
-  showFallbackGoogleButton(true);
-  googleLoginFallback.disabled = false;
-  googleButtonRendered = true;
-}
-
-function ensureGoogleLoginReady() {
-  if (!googleClientId) {
-    googleSetupHint.hidden = false;
-    showFallbackGoogleButton(false);
-    return;
-  }
-
-  if (!window.google?.accounts?.id) {
-    showFallbackGoogleButton(true);
-    window.setTimeout(ensureGoogleLoginReady, 300);
-    return;
-  }
-
-  setupGoogleAuth();
-  renderGoogleButton();
-}
-
-function showGoogleOneTap() {
-  if (!googleClientId || isMember || isAdmin) return;
-  if (!setupGoogleAuth()) {
-    setTimeout(showGoogleOneTap, 500);
-    return;
-  }
-  google.accounts.id.prompt(notification => {
-    if (!notification?.isNotDisplayed()) return;
-    const reason = notification.getNotDisplayedReason();
-    if (reason === 'suppressed_by_user' || reason === 'opt_out_or_no_session') return;
-    console.info('Google One Tap:', reason);
-  });
-}
-
-async function checkMemberStatus() {
-  try {
-    const res = await fetch('/api/member/status', fetchOpts);
-    const data = await res.json();
-    setMemberMode(data.isLoggedIn, data.member);
-    if (!data.isLoggedIn && googleClientId) {
-      setTimeout(showGoogleOneTap, 800);
-    }
-  } catch {
-    setMemberMode(false);
-  }
-}
 
 window.addEventListener('hashchange', handleProductHash);
 
@@ -371,11 +384,9 @@ function setAdminMode(admin) {
   uploadSection.hidden = !admin;
   loginBtn.hidden = admin;
   adminLogoutBtn.hidden = !admin;
-  if (!isMember) {
-    subtitle.textContent = admin ? '管理員模式' : '瀏覽精選商品';
-  }
-  modeLabel.textContent = admin ? 'ADMIN' : (isMember ? 'MEMBER' : 'VIEWER');
-  modeLabel.classList.toggle('ok', admin || isMember);
+  subtitle.textContent = admin ? '管理員模式' : '瀏覽精選商品';
+  modeLabel.textContent = admin ? 'ADMIN' : 'VIEWER';
+  modeLabel.classList.toggle('ok', admin);
 }
 
 function showPreview(file) {
@@ -451,9 +462,7 @@ async function loadSiteConfig() {
     const res = await fetch('/api/config');
     const data = await res.json();
     publicBaseUrl = data.publicUrl || null;
-    googleClientId = data.googleClientId || null;
     persistentStorage = data.persistentStorage !== false;
-    if (googleClientId) ensureGoogleLoginReady();
 
     if (publicBaseUrl) {
       publicUrlLabel.textContent = `PUBLIC: ${publicBaseUrl.replace('https://', '')}`;
@@ -478,6 +487,7 @@ async function loadSiteConfig() {
 function openImageLightbox(product) {
   currentLightboxId = product.id;
   history.replaceState(null, '', `#product-${product.id}`);
+  recordView(product.id);
 
   lightboxCategory.textContent = product.category;
   lightboxName.textContent = product.name;
@@ -500,7 +510,7 @@ function openImageLightbox(product) {
 
 function closeImageLightbox() {
   imageLightbox.classList.remove('is-open');
-  document.body.style.overflow = '';
+  document.body.style.overflow = cartDrawerBg.classList.contains('is-open') ? 'hidden' : '';
   currentLightboxId = null;
   if (location.hash.startsWith('#product-')) {
     history.replaceState(null, '', location.pathname);
@@ -516,6 +526,10 @@ function renderProduct(product) {
     ? `<button class="delete-btn" data-action="delete" data-id="${product.id}">DEL</button>`
     : '';
 
+  const cartBtnHtml = isAdmin
+    ? ''
+    : `<button class="card-action-btn" data-action="cart" data-id="${product.id}">CART</button>`;
+
   return `
     <article class="gallery-card product-card" id="product-${product.id}" data-id="${product.id}">
       <div class="card-img-wrap product-image-wrap" data-action="view" data-id="${product.id}">
@@ -529,6 +543,7 @@ function renderProduct(product) {
           </div>
         </div>
         <div class="card-actions">
+          ${cartBtnHtml}
           <button class="card-action-btn share-btn" data-action="share" data-id="${product.id}">SHARE</button>
           ${deleteBtn}
         </div>
@@ -547,6 +562,7 @@ function bindProductEvents() {
 
       if (el.dataset.action === 'view') openImageLightbox(product);
       else if (el.dataset.action === 'share') shareProduct(id);
+      else if (el.dataset.action === 'cart') addToCart(id);
       else if (el.dataset.action === 'delete') deleteProduct(id);
     });
   });
@@ -609,11 +625,15 @@ async function loadProducts() {
           <span class="empty-icon">◌</span>
           <span class="empty-text">尚無商品</span>
         </div>`;
+      renderRecentSection();
+      renderCartDrawer();
       return;
     }
 
     productsGrid.innerHTML = allProducts.map(renderProduct).join('');
     bindProductEvents();
+    renderRecentSection();
+    renderCartDrawer();
 
     if (location.hash.startsWith('#product-')) handleProductHash();
   } catch {
@@ -629,6 +649,8 @@ async function deleteProduct(id) {
     const data = await res.json().catch(() => ({}));
     if (!res.ok) throw new Error(data.error || '刪除失敗');
     if (currentLightboxId === Number(id)) closeImageLightbox();
+    removeFromCart(Number(id));
+    saveHistory(getHistory().filter(itemId => itemId !== Number(id)));
     showToast('商品已刪除');
     loadProducts();
   } catch (err) {
@@ -669,6 +691,7 @@ form.addEventListener('submit', async e => {
   }
 });
 
+updateCartBadge();
 loadSiteConfig()
-  .then(() => Promise.all([checkAdminStatus(), checkMemberStatus()]))
+  .then(checkAdminStatus)
   .then(loadProducts);
