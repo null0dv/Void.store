@@ -1,0 +1,13 @@
+node_modules/
+uploads/*
+!uploads/.gitkeep
+data/admin-config.json
+data/members.json
+data/site-config.json
+tunnel.log
+tunnel-err.log
+*.log
+.env
+.env.local
+.DS_Store
+Thumbs.db
