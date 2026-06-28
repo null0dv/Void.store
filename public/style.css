@@ -246,6 +246,11 @@ body {
   letter-spacing: 0.04em;
 }
 
+.modal-hint-warn {
+  color: var(--yellow);
+  margin-top: 8px;
+}
+
 .modal-actions-center {
   justify-content: center;
 }

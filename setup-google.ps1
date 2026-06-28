@@ -14,8 +14,23 @@ Write-Host "========================================" -ForegroundColor Cyan
 Write-Host "  Google Member Login Setup" -ForegroundColor Cyan
 Write-Host "========================================" -ForegroundColor Cyan
 Write-Host ""
-Write-Host "Step 1: Create OAuth Client ID" -ForegroundColor Yellow
-Write-Host "  Opening Google Cloud Console..."
+$consentUrl = "https://console.cloud.google.com/auth/audience"
+
+Write-Host "Step 1: OAuth consent screen (required first)" -ForegroundColor Yellow
+Write-Host "  Opening OAuth consent screen..."
+Write-Host ""
+Write-Host "  In Google Console:" -ForegroundColor White
+Write-Host "  1. Fill app name and support email"
+Write-Host "  2. Add scopes: email, profile, openid"
+Write-Host "  3. If status is TESTING, add your Gmail as Test user" -ForegroundColor Green
+Write-Host "     OR click Publish App to allow all Google accounts"
+Write-Host ""
+
+Start-Process $consentUrl
+Start-Sleep -Seconds 2
+
+Write-Host "Step 2: Create OAuth Client ID" -ForegroundColor Yellow
+Write-Host "  Opening Credentials page..."
 Write-Host ""
 Write-Host "  In Google Console:" -ForegroundColor White
 Write-Host "  1. Select or create a project"
@@ -30,7 +45,7 @@ Write-Host ""
 Start-Process $googleConsole
 Start-Sleep -Seconds 2
 
-Write-Host "Step 2: Paste Client ID" -ForegroundColor Yellow
+Write-Host "Step 3: Paste Client ID" -ForegroundColor Yellow
 $clientId = Read-Host "Paste Google Client ID"
 
 if (-not $clientId -or $clientId -notmatch '\.apps\.googleusercontent\.com$') {
@@ -44,7 +59,7 @@ Set-Content -Path $googleConfig -Value $config -Encoding UTF8
 Write-Host "Saved local config: $googleConfig" -ForegroundColor Green
 
 Write-Host ""
-Write-Host "Step 3: Set Render environment variable" -ForegroundColor Yellow
+Write-Host "Step 4: Set Render environment variable" -ForegroundColor Yellow
 Write-Host "  Opening Render dashboard..."
 Write-Host ""
 Write-Host "  In Render:" -ForegroundColor White
