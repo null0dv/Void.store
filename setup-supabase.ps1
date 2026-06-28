@@ -31,8 +31,10 @@ Start-Process notepad $schemaFile
 Start-Sleep -Seconds 1
 
 Write-Host "Step 3: Paste Supabase keys" -ForegroundColor Yellow
+Write-Host "  Keys are at: Project Settings -> API Keys" -ForegroundColor White
+Write-Host "  Use Secret key (sb_secret_...) or legacy service_role" -ForegroundColor White
 $projectUrl = Read-Host "Supabase Project URL (https://xxxx.supabase.co)"
-$serviceKey = Read-Host "Supabase service_role key (secret)"
+$serviceKey = Read-Host "Supabase Secret key or service_role key"
 
 if (-not $projectUrl -or $projectUrl -notmatch '^https://.+\.supabase\.co/?$') {
     Write-Host "Invalid Supabase URL" -ForegroundColor Red
