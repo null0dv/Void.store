@@ -18,6 +18,7 @@
     <div class="logo">VOID<span>.STORE</span></div>
     <div class="topbar-right">
       <span class="status-text" id="subtitle">瀏覽精選商品</span>
+      <button class="tb-btn tb-btn-line" id="lineGroupBtn" type="button" hidden>LINE 群組</button>
       <button class="tb-btn" id="cartBtn" type="button">CART <span class="cart-badge" id="cartBadge" hidden>0</span></button>
       <button class="tb-btn tb-btn-null" id="loginBtn" type="button">_null</button>
       <button class="tb-btn" id="adminLogoutBtn" type="button" hidden>LOGOUT</button>
@@ -79,6 +80,16 @@
         <div class="center-tab active">GALLERY</div>
       </div>
       <div class="gallery-view" id="galleryView">
+        <section class="line-cta-banner" id="lineCtaBanner" hidden>
+          <div class="line-cta-copy">
+            <span class="line-cta-title">想詢價或看最新上架？</span>
+            <span class="line-cta-desc">加入官方 LINE 群組，或將購物車清單傳給我們詢價</span>
+          </div>
+          <div class="line-cta-actions">
+            <button type="button" class="line-btn" id="lineGroupBannerBtn" hidden>加入群組</button>
+            <button type="button" class="line-btn line-btn-outline" id="lineInquiryBannerBtn" hidden>LINE 詢價</button>
+          </div>
+        </section>
         <section class="recent-section" id="recentSection" hidden>
           <div class="recent-header">
             <span class="sec-label">最近瀏覽</span>
@@ -117,6 +128,7 @@
           <span class="lb-price" id="lightboxPrice"></span>
           <div class="lb-actions">
             <button class="action-btn" id="lightboxCartBtn" type="button">ADD CART</button>
+            <button class="action-btn action-btn-line" id="lightboxLineBtn" type="button" hidden>LINE</button>
             <button class="action-btn" id="lightboxShareBtn" type="button">SHARE</button>
           </div>
         </div>
@@ -130,16 +142,17 @@
         <span class="sec-label">購物車</span>
         <button type="button" class="lb-close cart-close" id="closeCartBtn" aria-label="關閉">✕</button>
       </div>
-      <p class="cart-hint">資料儲存在此裝置瀏覽器，無需登入</p>
+      <p class="cart-hint">選好商品後，點下方 <strong>LINE 詢價</strong> 傳清單給我們；也可先加入官方群組</p>
       <div class="cart-list" id="cartList"></div>
       <div class="cart-footer" id="cartFooter" hidden>
         <div class="cart-total">
           <span>合計</span>
           <span id="cartTotal">NT$ 0</span>
         </div>
+        <button type="button" class="line-btn line-btn-block" id="lineInquiryCartBtn" hidden>LINE 詢價</button>
         <div class="cart-footer-actions">
           <button type="button" class="tb-btn" id="clearCartBtn">清空</button>
-          <button type="button" class="gen-btn gen-btn-sm" id="copyCartBtn">複製清單</button>
+          <button type="button" class="tb-btn" id="copyCartBtn">複製清單</button>
         </div>
       </div>
     </aside>

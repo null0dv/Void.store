@@ -17,3 +17,7 @@ services:
         value: https://iriuznaoxstqsepisldd.supabase.co
       - key: SUPABASE_SERVICE_ROLE_KEY
         sync: false
+      - key: LINE_INQUIRY_URL
+        sync: false
+      - key: LINE_GROUP_URL
+        sync: false

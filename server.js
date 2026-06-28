@@ -22,7 +22,11 @@ const adminSessions = new Map();
 if (!fs.existsSync(uploadsDir)) fs.mkdirSync(uploadsDir, { recursive: true });
 if (!fs.existsSync(dataDir)) fs.mkdirSync(dataDir, { recursive: true });
 if (!fs.existsSync(siteConfigFile)) {
-  fs.writeFileSync(siteConfigFile, JSON.stringify({ publicUrl: null }, null, 2), 'utf-8');
+  fs.writeFileSync(siteConfigFile, JSON.stringify({
+    publicUrl: null,
+    lineInquiryUrl: null,
+    lineGroupUrl: null,
+  }, null, 2), 'utf-8');
 }
 
 function getPublicUrl() {
@@ -36,6 +40,8 @@ function readSiteConfig() {
   const config = JSON.parse(fs.readFileSync(siteConfigFile, 'utf-8'));
   const publicUrl = getPublicUrl();
   if (publicUrl) config.publicUrl = publicUrl;
+  if (process.env.LINE_INQUIRY_URL) config.lineInquiryUrl = process.env.LINE_INQUIRY_URL;
+  if (process.env.LINE_GROUP_URL) config.lineGroupUrl = process.env.LINE_GROUP_URL;
   return config;
 }
 
@@ -133,6 +139,8 @@ app.get('/api/config', (req, res) => {
     isProduction: IS_PRODUCTION,
     persistentStorage: productStore.usesPersistentStorage(),
     storageBackend: productStore.usesSupabase() ? 'supabase' : 'local',
+    lineInquiryUrl: site.lineInquiryUrl || null,
+    lineGroupUrl: site.lineGroupUrl || null,
   });
 });
 

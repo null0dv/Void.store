@@ -26,6 +26,8 @@ Write-Host ""
 Write-Host "步驟 4：設定環境變數（Render 控制台）" -ForegroundColor Yellow
 Write-Host "  ADMIN_PASSWORD              = 你的管理員密碼（_null 登入用）"
 Write-Host "  SUPABASE_SERVICE_ROLE_KEY   = Supabase 金鑰（商品持久化，選填）"
+Write-Host "  LINE_INQUIRY_URL            = LINE 詢價連結（選填，執行 setup-line.ps1）"
+Write-Host "  LINE_GROUP_URL              = LINE 群組邀請連結（選填）"
 Write-Host ""
 Write-Host "步驟 5：取得固定網址" -ForegroundColor Yellow
 Write-Host "  部署完成後網址格式：https://void-store.onrender.com"
