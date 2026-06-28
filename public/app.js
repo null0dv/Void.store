@@ -16,7 +16,6 @@ const dropZone = document.getElementById('dropZone');
 const dropContent = document.getElementById('dropContent');
 const preview = document.getElementById('preview');
 const previewImg = document.getElementById('previewImg');
-const browseBtn = document.getElementById('browseBtn');
 const removeImageBtn = document.getElementById('removeImage');
 const productsGrid = document.getElementById('productsGrid');
 const productCount = document.getElementById('productCount');
@@ -70,7 +69,6 @@ const editDropZone = document.getElementById('editDropZone');
 const editDropContent = document.getElementById('editDropContent');
 const editPreview = document.getElementById('editPreview');
 const editPreviewImg = document.getElementById('editPreviewImg');
-const editBrowseBtn = document.getElementById('editBrowseBtn');
 const editRemoveImageBtn = document.getElementById('editRemoveImage');
 const editCurrentImgWrap = document.getElementById('editCurrentImgWrap');
 const editCurrentImg = document.getElementById('editCurrentImg');
@@ -309,17 +307,21 @@ function renderRecentSection() {
   });
 }
 
-browseBtn.addEventListener('click', () => imageInput.click());
+function toggleFileInputOverlay(input, enabled) {
+  input.classList.toggle('is-disabled', !enabled);
+}
 
 imageInput.addEventListener('change', () => {
   if (imageInput.files[0]) showPreview(imageInput.files[0]);
 });
 
 removeImageBtn.addEventListener('click', e => {
+  e.preventDefault();
   e.stopPropagation();
   imageInput.value = '';
   preview.hidden = true;
   dropContent.hidden = false;
+  toggleFileInputOverlay(imageInput, true);
 });
 
 ['dragenter', 'dragover'].forEach(evt => {
@@ -345,8 +347,6 @@ dropZone.addEventListener('drop', e => {
     showPreview(file);
   }
 });
-
-dropZone.addEventListener('click', () => imageInput.click());
 
 function openLoginModal() {
   loginModal.classList.add('is-open');
@@ -434,13 +434,12 @@ lightboxDeleteBtn.addEventListener('click', () => {
   if (currentLightboxId) deleteProduct(currentLightboxId);
 });
 
-editBrowseBtn.addEventListener('click', () => editImageInput.click());
-
 editImageInput.addEventListener('change', () => {
   if (editImageInput.files[0]) showEditPreview(editImageInput.files[0]);
 });
 
 editRemoveImageBtn.addEventListener('click', e => {
+  e.preventDefault();
   e.stopPropagation();
   resetEditImagePreview();
 });
@@ -468,8 +467,6 @@ editDropZone.addEventListener('drop', e => {
     showEditPreview(file);
   }
 });
-
-editDropZone.addEventListener('click', () => editImageInput.click());
 
 cancelEdit.addEventListener('click', closeEditModal);
 editModal.addEventListener('click', e => {
@@ -552,6 +549,7 @@ function showPreview(file) {
     previewImg.src = e.target.result;
     dropContent.hidden = true;
     preview.hidden = false;
+    toggleFileInputOverlay(imageInput, false);
   };
   reader.readAsDataURL(file);
 }
@@ -562,6 +560,7 @@ function showEditPreview(file) {
     editPreviewImg.src = e.target.result;
     editDropContent.hidden = true;
     editPreview.hidden = false;
+    toggleFileInputOverlay(editImageInput, false);
   };
   reader.readAsDataURL(file);
 }
@@ -570,6 +569,7 @@ function resetEditImagePreview() {
   editImageInput.value = '';
   editPreview.hidden = true;
   editDropContent.hidden = false;
+  toggleFileInputOverlay(editImageInput, true);
 }
 
 function updateLightboxActions() {
@@ -606,6 +606,7 @@ function closeEditModal() {
   editingProductId = null;
   editForm.reset();
   resetEditImagePreview();
+  toggleFileInputOverlay(editImageInput, true);
   editCurrentImgWrap.hidden = true;
   if (!imageLightbox.classList.contains('is-open') && !cartDrawerBg.classList.contains('is-open')) {
     document.body.style.overflow = '';
@@ -906,6 +907,7 @@ form.addEventListener('submit', async e => {
     imageInput.value = '';
     preview.hidden = true;
     dropContent.hidden = false;
+    toggleFileInputOverlay(imageInput, true);
     loadProducts();
   } catch (err) {
     showToast(err.message || '上傳失敗', 'error');
@@ -916,6 +918,8 @@ form.addEventListener('submit', async e => {
   }
 });
 
+toggleFileInputOverlay(imageInput, true);
+toggleFileInputOverlay(editImageInput, true);
 updateCartBadge();
 loadSiteConfig()
   .then(checkAdminStatus)

@@ -313,6 +313,42 @@ body {
   background: var(--glass);
   position: relative;
   overflow: hidden;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.file-input-overlay {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+  cursor: pointer;
+  z-index: 3;
+  font-size: 0;
+}
+
+.file-input-overlay.is-disabled {
+  pointer-events: none;
+  visibility: hidden;
+  z-index: -1;
+}
+
+.replace-img-label {
+  position: absolute;
+  bottom: 6px;
+  left: 6px;
+  padding: 5px 10px;
+  border-radius: 6px;
+  background: rgba(9, 8, 12, 0.82);
+  border: 1px solid var(--line2);
+  color: var(--accent2);
+  font-family: var(--mono);
+  font-size: 9px;
+  letter-spacing: 0.08em;
+  cursor: pointer;
+  z-index: 4;
+  touch-action: manipulation;
 }
 
 .img-upload.dragover {
@@ -359,14 +395,16 @@ body {
   position: absolute;
   top: 6px;
   right: 6px;
-  width: 24px;
-  height: 24px;
+  width: 28px;
+  height: 28px;
   border-radius: 50%;
   background: rgba(232, 64, 64, 0.85);
   color: white;
   border: 1px solid rgba(255, 255, 255, 0.2);
   cursor: pointer;
   font-size: 0.7rem;
+  z-index: 5;
+  touch-action: manipulation;
 }
 
 .gen-wrap {
@@ -1373,6 +1411,23 @@ body {
   .gallery-view {
     padding: 12px;
     -webkit-overflow-scrolling: touch;
+  }
+
+  .img-upload {
+    min-height: 100px;
+  }
+
+  .file-input-overlay {
+    min-height: 44px;
+  }
+
+  .replace-img-label,
+  .remove-btn {
+    min-width: 44px;
+    min-height: 44px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
   }
 
   .gallery-grid {

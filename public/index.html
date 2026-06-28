@@ -55,15 +55,16 @@
               <label class="field-label" for="description">描述</label>
               <textarea class="prompt-area" id="description" name="description" rows="3" placeholder="商品特色、規格..."></textarea>
 
-              <label class="field-label">圖片</label>
+              <label class="field-label" for="image">圖片</label>
               <div class="img-upload" id="dropZone">
-                <input type="file" id="image" name="image" accept="image/*" hidden>
+                <input type="file" id="image" name="image" accept="image/jpeg,image/png,image/webp,image/gif" class="file-input-overlay">
                 <div class="drop-content" id="dropContent">
-                  <span class="ul">拖曳或 <button type="button" class="link-btn" id="browseBtn">選擇檔案</button></span>
+                  <span class="ul">點擊選擇圖片</span>
                   <span class="hint">JPG / PNG / WebP · 5MB</span>
                 </div>
                 <div class="preview" id="preview" hidden>
                   <img id="previewImg" alt="預覽">
+                  <label class="replace-img-label" for="image">更換</label>
                   <button type="button" class="remove-btn" id="removeImage" title="移除">✕</button>
                 </div>
               </div>
@@ -198,13 +199,14 @@
             <span class="hint">目前圖片（上傳新檔可替換）</span>
           </div>
           <div class="img-upload" id="editDropZone">
-            <input type="file" id="editImage" name="image" accept="image/*" hidden>
+            <input type="file" id="editImage" name="image" accept="image/jpeg,image/png,image/webp,image/gif" class="file-input-overlay">
             <div class="drop-content" id="editDropContent">
-              <span class="ul">拖曳或 <button type="button" class="link-btn" id="editBrowseBtn">選擇新圖片</button></span>
+              <span class="ul">點擊選擇新圖片</span>
               <span class="hint">選填 · JPG / PNG / WebP · 5MB</span>
             </div>
             <div class="preview" id="editPreview" hidden>
               <img id="editPreviewImg" alt="新圖片預覽">
+              <label class="replace-img-label" for="editImage">更換</label>
               <button type="button" class="remove-btn" id="editRemoveImage" title="移除">✕</button>
             </div>
           </div>
