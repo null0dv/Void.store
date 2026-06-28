@@ -4,6 +4,7 @@ let allProducts = [];
 let currentLightboxId = null;
 let publicBaseUrl = null;
 let googleClientId = null;
+let googleInitialized = false;
 
 const form = document.getElementById('uploadForm');
 const imageInput = document.getElementById('image');
@@ -25,6 +26,8 @@ const adminLogoutBtn = document.getElementById('adminLogoutBtn');
 const memberLoginBtn = document.getElementById('memberLoginBtn');
 const memberLogoutBtn = document.getElementById('memberLogoutBtn');
 const memberChip = document.getElementById('memberChip');
+const memberAvatar = document.getElementById('memberAvatar');
+const memberLabel = document.getElementById('memberLabel');
 const memberModal = document.getElementById('memberModal');
 const cancelMemberLogin = document.getElementById('cancelMemberLogin');
 const googleSetupHint = document.getElementById('googleSetupHint');
@@ -156,7 +159,7 @@ document.addEventListener('keydown', e => {
 
 function openMemberModal() {
   memberModal.classList.add('is-open');
-  initGoogleSignIn();
+  renderGoogleButton();
 }
 
 function closeMemberModal() {
@@ -171,11 +174,19 @@ function setMemberMode(loggedIn, member = null) {
 
   if (loggedIn && member) {
     const label = member.name || member.email;
-    memberChip.textContent = label.length > 14 ? `${label.slice(0, 14)}…` : label;
+    memberLabel.textContent = label.length > 12 ? `${label.slice(0, 12)}…` : label;
     memberChip.title = member.email;
+    if (member.picture) {
+      memberAvatar.src = member.picture;
+      memberAvatar.hidden = false;
+    } else {
+      memberAvatar.hidden = true;
+    }
     if (!isAdmin) subtitle.textContent = '會員已登入';
-  } else if (!isAdmin) {
-    subtitle.textContent = '瀏覽精選商品';
+  } else {
+    memberAvatar.hidden = true;
+    memberLabel.textContent = '';
+    if (!isAdmin) subtitle.textContent = '瀏覽精選商品';
   }
 
   if (!isAdmin) {
@@ -203,7 +214,28 @@ async function handleGoogleCredential(response) {
   }
 }
 
-function initGoogleSignIn() {
+function setupGoogleAuth() {
+  if (!googleClientId || googleInitialized) return false;
+
+  if (!window.google?.accounts?.id) {
+    setTimeout(setupGoogleAuth, 300);
+    return false;
+  }
+
+  google.accounts.id.initialize({
+    client_id: googleClientId,
+    callback: handleGoogleCredential,
+    auto_select: true,
+    context: 'signin',
+    itp_support: true,
+  });
+
+  googleInitialized = true;
+  googleSetupHint.hidden = true;
+  return true;
+}
+
+function renderGoogleButton() {
   const btnContainer = document.getElementById('googleSignInBtn');
   btnContainer.innerHTML = '';
 
@@ -212,28 +244,30 @@ function initGoogleSignIn() {
     return;
   }
 
-  googleSetupHint.hidden = true;
-
-  if (!window.google?.accounts?.id) {
+  if (!setupGoogleAuth()) {
     btnContainer.innerHTML = '<span class="modal-hint">載入 Google 登入中...</span>';
-    setTimeout(initGoogleSignIn, 500);
+    setTimeout(renderGoogleButton, 400);
     return;
   }
-
-  google.accounts.id.initialize({
-    client_id: googleClientId,
-    callback: handleGoogleCredential,
-    auto_select: true,
-  });
 
   google.accounts.id.renderButton(btnContainer, {
     theme: 'filled_black',
     size: 'large',
-    width: 280,
-    text: 'signin_with',
+    width: Math.min(320, window.innerWidth - 80),
+    text: 'continue_with',
     locale: 'zh-TW',
-    shape: 'rectangular',
+    shape: 'pill',
+    logo_alignment: 'left',
   });
+}
+
+function showGoogleOneTap() {
+  if (!googleClientId || isMember || isAdmin) return;
+  if (!setupGoogleAuth()) {
+    setTimeout(showGoogleOneTap, 500);
+    return;
+  }
+  google.accounts.id.prompt();
 }
 
 async function checkMemberStatus() {
@@ -241,6 +275,9 @@ async function checkMemberStatus() {
     const res = await fetch('/api/member/status', fetchOpts);
     const data = await res.json();
     setMemberMode(data.isLoggedIn, data.member);
+    if (!data.isLoggedIn && googleClientId) {
+      setTimeout(showGoogleOneTap, 800);
+    }
   } catch {
     setMemberMode(false);
   }
@@ -339,6 +376,7 @@ async function loadSiteConfig() {
     const data = await res.json();
     publicBaseUrl = data.publicUrl || null;
     googleClientId = data.googleClientId || null;
+    if (googleClientId) setupGoogleAuth();
 
     if (publicBaseUrl) {
       publicUrlLabel.textContent = `PUBLIC: ${publicBaseUrl.replace('https://', '')}`;
