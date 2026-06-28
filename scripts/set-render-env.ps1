@@ -42,8 +42,9 @@ $serviceId = $service.service.id
 Write-Host "Service ID: $serviceId" -ForegroundColor Green
 
 function Set-RenderEnv($key, $value) {
-  $body = @{ envVar = @{ key = $key; value = $value } } | ConvertTo-Json -Depth 5
-  Invoke-RestMethod -Uri "https://api.render.com/v1/services/$serviceId/env-vars" -Headers $headers -Method Post -Body $body | Out-Null
+  $body = @{ value = $value } | ConvertTo-Json -Depth 5
+  $encodedKey = [Uri]::EscapeDataString($key)
+  Invoke-RestMethod -Uri "https://api.render.com/v1/services/$serviceId/env-vars/$encodedKey" -Headers $headers -Method Put -Body $body | Out-Null
   Write-Host "Set $key" -ForegroundColor Green
 }
 
