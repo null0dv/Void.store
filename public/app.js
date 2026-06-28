@@ -1,6 +1,7 @@
 let isAdmin = false;
 let allProducts = [];
 let currentLightboxId = null;
+let editingProductId = null;
 let publicBaseUrl = null;
 let persistentStorage = true;
 let lineGroupUrl = null;
@@ -51,8 +52,31 @@ const lightboxCategory = document.getElementById('lightboxCategory');
 const lightboxName = document.getElementById('lightboxName');
 const lightboxDesc = document.getElementById('lightboxDesc');
 const lightboxPrice = document.getElementById('lightboxPrice');
+const lightboxGuestActions = document.getElementById('lightboxGuestActions');
+const lightboxAdminActions = document.getElementById('lightboxAdminActions');
 const lightboxCartBtn = document.getElementById('lightboxCartBtn');
 const lightboxShareBtn = document.getElementById('lightboxShareBtn');
+const lightboxEditBtn = document.getElementById('lightboxEditBtn');
+const lightboxDeleteBtn = document.getElementById('lightboxDeleteBtn');
+const editModal = document.getElementById('editModal');
+const editForm = document.getElementById('editForm');
+const editId = document.getElementById('editId');
+const editName = document.getElementById('editName');
+const editPrice = document.getElementById('editPrice');
+const editCategory = document.getElementById('editCategory');
+const editDescription = document.getElementById('editDescription');
+const editImageInput = document.getElementById('editImage');
+const editDropZone = document.getElementById('editDropZone');
+const editDropContent = document.getElementById('editDropContent');
+const editPreview = document.getElementById('editPreview');
+const editPreviewImg = document.getElementById('editPreviewImg');
+const editBrowseBtn = document.getElementById('editBrowseBtn');
+const editRemoveImageBtn = document.getElementById('editRemoveImage');
+const editCurrentImgWrap = document.getElementById('editCurrentImgWrap');
+const editCurrentImg = document.getElementById('editCurrentImg');
+const editDeleteBtn = document.getElementById('editDeleteBtn');
+const cancelEdit = document.getElementById('cancelEdit');
+const editSubmitBtn = document.getElementById('editSubmitBtn');
 const publicUrlLabel = document.getElementById('publicUrlLabel');
 const lineGroupBtn = document.getElementById('lineGroupBtn');
 const lineCtaBanner = document.getElementById('lineCtaBanner');
@@ -397,8 +421,105 @@ lightboxShareBtn.addEventListener('click', () => {
   if (currentLightboxId) shareProduct(currentLightboxId);
 });
 
+lightboxEditBtn.addEventListener('click', () => {
+  if (!currentLightboxId) return;
+  const product = allProducts.find(p => p.id === currentLightboxId);
+  if (product) {
+    closeImageLightbox();
+    openEditModal(product);
+  }
+});
+
+lightboxDeleteBtn.addEventListener('click', () => {
+  if (currentLightboxId) deleteProduct(currentLightboxId);
+});
+
+editBrowseBtn.addEventListener('click', () => editImageInput.click());
+
+editImageInput.addEventListener('change', () => {
+  if (editImageInput.files[0]) showEditPreview(editImageInput.files[0]);
+});
+
+editRemoveImageBtn.addEventListener('click', e => {
+  e.stopPropagation();
+  resetEditImagePreview();
+});
+
+['dragenter', 'dragover'].forEach(evt => {
+  editDropZone.addEventListener(evt, e => {
+    e.preventDefault();
+    editDropZone.classList.add('dragover');
+  });
+});
+
+['dragleave', 'drop'].forEach(evt => {
+  editDropZone.addEventListener(evt, e => {
+    e.preventDefault();
+    editDropZone.classList.remove('dragover');
+  });
+});
+
+editDropZone.addEventListener('drop', e => {
+  const file = e.dataTransfer.files[0];
+  if (file && file.type.startsWith('image/')) {
+    const dt = new DataTransfer();
+    dt.items.add(file);
+    editImageInput.files = dt.files;
+    showEditPreview(file);
+  }
+});
+
+editDropZone.addEventListener('click', () => editImageInput.click());
+
+cancelEdit.addEventListener('click', closeEditModal);
+editModal.addEventListener('click', e => {
+  if (e.target === editModal) closeEditModal();
+});
+
+editDeleteBtn.addEventListener('click', () => {
+  if (editingProductId) {
+    closeEditModal();
+    deleteProduct(editingProductId);
+  }
+});
+
+editForm.addEventListener('submit', async e => {
+  e.preventDefault();
+  if (!editingProductId) return;
+
+  const btnText = editSubmitBtn.querySelector('.btn-text');
+  const btnLoading = editSubmitBtn.querySelector('.btn-loading');
+
+  editSubmitBtn.disabled = true;
+  btnText.hidden = true;
+  btnLoading.hidden = false;
+
+  const formData = new FormData(editForm);
+
+  try {
+    const res = await fetch(`/api/products/${editingProductId}`, {
+      method: 'PUT',
+      body: formData,
+      ...fetchOpts,
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || '更新失敗');
+
+    closeEditModal();
+    showToast('商品已更新');
+    loadProducts();
+  } catch (err) {
+    showToast(err.message || '更新失敗', 'error');
+  } finally {
+    editSubmitBtn.disabled = false;
+    btnText.hidden = false;
+    btnLoading.hidden = true;
+  }
+});
+
 document.addEventListener('keydown', e => {
   if (e.key === 'Escape') {
+    closeEditModal();
     closeImageLightbox();
     closeLoginModal();
     closeCartDrawer();
@@ -421,6 +542,8 @@ function setAdminMode(admin) {
   modeLabel.textContent = admin ? 'ADMIN' : 'VIEWER';
   modeLabel.classList.toggle('ok', admin);
   updateLineUi();
+  updateLightboxActions();
+  if (!admin) closeEditModal();
 }
 
 function showPreview(file) {
@@ -431,6 +554,62 @@ function showPreview(file) {
     preview.hidden = false;
   };
   reader.readAsDataURL(file);
+}
+
+function showEditPreview(file) {
+  const reader = new FileReader();
+  reader.onload = e => {
+    editPreviewImg.src = e.target.result;
+    editDropContent.hidden = true;
+    editPreview.hidden = false;
+  };
+  reader.readAsDataURL(file);
+}
+
+function resetEditImagePreview() {
+  editImageInput.value = '';
+  editPreview.hidden = true;
+  editDropContent.hidden = false;
+}
+
+function updateLightboxActions() {
+  if (lightboxGuestActions) lightboxGuestActions.hidden = isAdmin;
+  if (lightboxAdminActions) lightboxAdminActions.hidden = !isAdmin;
+}
+
+function openEditModal(product) {
+  if (!isAdmin || !product) return;
+
+  editingProductId = product.id;
+  editId.value = String(product.id);
+  editName.value = product.name;
+  editPrice.value = String(Math.round(product.price));
+  editCategory.value = product.category || '其他';
+  editDescription.value = product.description || '';
+  resetEditImagePreview();
+
+  if (product.image) {
+    editCurrentImg.src = product.image;
+    editCurrentImgWrap.hidden = false;
+  } else {
+    editCurrentImg.src = '';
+    editCurrentImgWrap.hidden = true;
+  }
+
+  editModal.classList.add('is-open');
+  document.body.style.overflow = 'hidden';
+  editName.focus();
+}
+
+function closeEditModal() {
+  editModal.classList.remove('is-open');
+  editingProductId = null;
+  editForm.reset();
+  resetEditImagePreview();
+  editCurrentImgWrap.hidden = true;
+  if (!imageLightbox.classList.contains('is-open') && !cartDrawerBg.classList.contains('is-open')) {
+    document.body.style.overflow = '';
+  }
 }
 
 function showToast(message, type = 'success') {
@@ -540,6 +719,7 @@ function openImageLightbox(product) {
     lightboxPlaceholder.hidden = false;
   }
 
+  updateLightboxActions();
   imageLightbox.classList.add('is-open');
   document.body.style.overflow = 'hidden';
 }
@@ -558,13 +738,18 @@ function renderProduct(product) {
     ? `<img src="${product.image}" alt="${escapeHtml(product.name)}">`
     : `<div class="product-image-placeholder">◌</div>`;
 
-  const deleteBtn = isAdmin
-    ? `<button class="delete-btn" data-action="delete" data-id="${product.id}">DEL</button>`
+  const adminBtns = isAdmin
+    ? `<button class="card-action-btn edit-btn" data-action="edit" data-id="${product.id}">EDIT</button>
+       <button class="delete-btn" data-action="delete" data-id="${product.id}">DEL</button>`
     : '';
 
   const cartBtnHtml = isAdmin
     ? ''
     : `<button class="card-action-btn" data-action="cart" data-id="${product.id}">CART</button>`;
+
+  const shareBtnHtml = isAdmin
+    ? ''
+    : `<button class="card-action-btn share-btn" data-action="share" data-id="${product.id}">SHARE</button>`;
 
   return `
     <article class="gallery-card product-card" id="product-${product.id}" data-id="${product.id}">
@@ -580,8 +765,8 @@ function renderProduct(product) {
         </div>
         <div class="card-actions">
           ${cartBtnHtml}
-          <button class="card-action-btn share-btn" data-action="share" data-id="${product.id}">SHARE</button>
-          ${deleteBtn}
+          ${shareBtnHtml}
+          ${adminBtns}
         </div>
       </div>
     </article>
@@ -599,7 +784,10 @@ function bindProductEvents() {
       if (el.dataset.action === 'view') openImageLightbox(product);
       else if (el.dataset.action === 'share') shareProduct(id);
       else if (el.dataset.action === 'cart') addToCart(id);
-      else if (el.dataset.action === 'delete') deleteProduct(id);
+      else if (el.dataset.action === 'edit') {
+        closeImageLightbox();
+        openEditModal(product);
+      } else if (el.dataset.action === 'delete') deleteProduct(id);
     });
   });
 
@@ -684,6 +872,7 @@ async function deleteProduct(id) {
     const res = await fetch(`/api/products/${id}`, { method: 'DELETE', ...fetchOpts });
     const data = await res.json().catch(() => ({}));
     if (!res.ok) throw new Error(data.error || '刪除失敗');
+    if (editingProductId === Number(id)) closeEditModal();
     if (currentLightboxId === Number(id)) closeImageLightbox();
     removeFromCart(Number(id));
     saveHistory(getHistory().filter(itemId => itemId !== Number(id)));

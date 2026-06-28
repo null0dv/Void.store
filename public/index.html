@@ -129,9 +129,13 @@
         <p class="lb-desc" id="lightboxDesc"></p>
         <div class="lb-meta">
           <span class="lb-price" id="lightboxPrice"></span>
-          <div class="lb-actions">
+          <div class="lb-actions" id="lightboxGuestActions">
             <button class="action-btn" id="lightboxCartBtn" type="button">ADD CART</button>
             <button class="action-btn" id="lightboxShareBtn" type="button">SHARE</button>
+          </div>
+          <div class="lb-actions" id="lightboxAdminActions" hidden>
+            <button class="action-btn" id="lightboxEditBtn" type="button">EDIT</button>
+            <button class="action-btn action-btn-danger" id="lightboxDeleteBtn" type="button">DEL</button>
           </div>
         </div>
       </div>
@@ -157,6 +161,64 @@
         </div>
       </div>
     </aside>
+  </div>
+
+  <div class="modal-overlay" id="editModal">
+    <div class="modal modal--edit">
+      <div class="sec-label">編輯商品</div>
+      <form id="editForm" enctype="multipart/form-data">
+        <input type="hidden" id="editId" name="id">
+        <div class="form-stack">
+          <label class="field-label" for="editName">名稱 <span class="req">*</span></label>
+          <input class="field-input" type="text" id="editName" name="name" required>
+
+          <label class="field-label" for="editPrice">價格 NT$ <span class="req">*</span></label>
+          <input class="field-input" type="number" id="editPrice" name="price" min="0" step="1" required>
+
+          <label class="field-label" for="editCategory">分類</label>
+          <select class="sel" id="editCategory" name="category">
+            <option value="銀飾">銀飾</option>
+            <option value="墜飾">墜飾</option>
+            <option value="耳環">耳環</option>
+            <option value="戒指">戒指</option>
+            <option value="服飾">服飾</option>
+            <option value="食品">食品</option>
+            <option value="3C電子">3C電子</option>
+            <option value="居家生活">居家生活</option>
+            <option value="美妝保養">美妝保養</option>
+            <option value="其他">其他</option>
+          </select>
+
+          <label class="field-label" for="editDescription">描述</label>
+          <textarea class="prompt-area" id="editDescription" name="description" rows="3" placeholder="商品特色、規格..."></textarea>
+
+          <label class="field-label">圖片</label>
+          <div class="edit-current-img" id="editCurrentImgWrap" hidden>
+            <img id="editCurrentImg" alt="目前圖片">
+            <span class="hint">目前圖片（上傳新檔可替換）</span>
+          </div>
+          <div class="img-upload" id="editDropZone">
+            <input type="file" id="editImage" name="image" accept="image/*" hidden>
+            <div class="drop-content" id="editDropContent">
+              <span class="ul">拖曳或 <button type="button" class="link-btn" id="editBrowseBtn">選擇新圖片</button></span>
+              <span class="hint">選填 · JPG / PNG / WebP · 5MB</span>
+            </div>
+            <div class="preview" id="editPreview" hidden>
+              <img id="editPreviewImg" alt="新圖片預覽">
+              <button type="button" class="remove-btn" id="editRemoveImage" title="移除">✕</button>
+            </div>
+          </div>
+        </div>
+        <div class="modal-actions modal-actions--edit">
+          <button type="button" class="tb-btn tb-btn-danger" id="editDeleteBtn">刪除商品</button>
+          <button type="button" class="tb-btn" id="cancelEdit">取消</button>
+          <button type="submit" class="gen-btn gen-btn-sm" id="editSubmitBtn">
+            <span class="btn-text">儲存</span>
+            <span class="btn-loading" hidden>儲存中...</span>
+          </button>
+        </div>
+      </form>
+    </div>
   </div>
 
   <div class="modal-overlay" id="loginModal">

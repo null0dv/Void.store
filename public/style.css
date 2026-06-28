@@ -769,6 +769,103 @@ body {
   align-items: center;
 }
 
+.modal--edit {
+  max-width: 420px;
+  max-height: 90vh;
+  overflow-y: auto;
+}
+
+.modal--edit .form-stack {
+  margin-bottom: 16px;
+}
+
+.modal--edit .field-label {
+  display: block;
+  font-size: 9px;
+  letter-spacing: 0.1em;
+  color: var(--muted);
+  margin-bottom: 5px;
+}
+
+.modal--edit .field-input,
+.modal--edit .sel,
+.modal--edit .prompt-area {
+  width: 100%;
+  margin-bottom: 12px;
+}
+
+.modal--edit .img-upload {
+  display: flex;
+  border: 1px dashed rgba(255, 255, 255, 0.12);
+  border-radius: 8px;
+  min-height: 72px;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: var(--muted);
+  font-size: 11px;
+  flex-direction: column;
+  gap: 6px;
+  background: var(--glass);
+  position: relative;
+  overflow: hidden;
+}
+
+.modal--edit .img-upload.dragover {
+  border-color: var(--accent2);
+  background: var(--glass2);
+}
+
+.edit-current-img {
+  margin-bottom: 10px;
+}
+
+.edit-current-img img {
+  width: 100%;
+  max-height: 140px;
+  object-fit: cover;
+  border-radius: 8px;
+  border: 1px solid var(--line2);
+  display: block;
+  margin-bottom: 6px;
+}
+
+.edit-current-img .hint,
+.modal--edit .drop-content .hint {
+  font-size: 9px;
+  color: var(--muted2);
+  letter-spacing: 0.05em;
+}
+
+.modal-actions--edit {
+  flex-wrap: wrap;
+  justify-content: space-between;
+}
+
+.modal-actions--edit .tb-btn-danger {
+  margin-right: auto;
+  color: var(--red);
+  border-color: rgba(232, 64, 64, 0.3);
+}
+
+.modal-actions--edit .tb-btn-danger:hover {
+  background: rgba(232, 64, 64, 0.12);
+  border-color: rgba(232, 64, 64, 0.45);
+  color: var(--red);
+}
+
+.action-btn-danger:hover {
+  background: rgba(232, 64, 64, 0.12);
+  border-color: rgba(232, 64, 64, 0.35);
+  color: var(--red);
+}
+
+.edit-btn:hover {
+  background: rgba(200, 200, 200, 0.06);
+  border-color: rgba(220, 220, 220, 0.12);
+  color: var(--accent2);
+}
+
 /* LINE CTA */
 .line-cta-banner {
   display: flex;
