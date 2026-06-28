@@ -304,39 +304,11 @@ function renderGoogleButton() {
     return;
   }
 
-  if (googleButtonRendered && btnContainer.childElementCount > 0) {
-    showFallbackGoogleButton(false);
-    return;
-  }
-
   btnContainer.innerHTML = '';
+  btnContainer.hidden = true;
   showFallbackGoogleButton(true);
   googleLoginFallback.disabled = false;
-
-  try {
-    google.accounts.id.renderButton(btnContainer, {
-      theme: 'filled_black',
-      size: 'large',
-      width: 320,
-      text: 'continue_with',
-      locale: 'zh-TW',
-      shape: 'pill',
-      logo_alignment: 'left',
-      click_listener: () => {
-        showFallbackGoogleButton(false);
-      },
-    });
-    googleButtonRendered = true;
-
-    window.setTimeout(() => {
-      const iframe = btnContainer.querySelector('iframe');
-      if (iframe) {
-        showFallbackGoogleButton(false);
-      }
-    }, 1200);
-  } catch {
-    showFallbackGoogleButton(true);
-  }
+  googleButtonRendered = true;
 }
 
 function ensureGoogleLoginReady() {
