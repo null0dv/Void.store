@@ -3,9 +3,11 @@ services:
     name: void-store
     runtime: node
     plan: free
+    region: singapore
     buildCommand: npm install
     startCommand: npm start
     healthCheckPath: /api/health
+    autoDeploy: true
     envVars:
       - key: NODE_ENV
         value: production
