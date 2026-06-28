@@ -6,6 +6,7 @@ let publicBaseUrl = null;
 let googleClientId = null;
 let googleInitialized = false;
 let googleButtonRendered = false;
+let persistentStorage = true;
 
 const form = document.getElementById('uploadForm');
 const imageInput = document.getElementById('image');
@@ -49,7 +50,7 @@ const lightboxPrice = document.getElementById('lightboxPrice');
 const lightboxShareBtn = document.getElementById('lightboxShareBtn');
 const publicUrlLabel = document.getElementById('publicUrlLabel');
 
-const fetchOpts = { credentials: 'include' };
+const fetchOpts = { credentials: 'include', cache: 'no-store' };
 
 browseBtn.addEventListener('click', () => imageInput.click());
 
@@ -141,6 +142,9 @@ loginForm.addEventListener('submit', async e => {
     closeLoginModal();
     setAdminMode(true);
     showToast('登入成功');
+    if (!persistentStorage) {
+      showToast('雲端尚未設定 Supabase，商品可能在重新部署後消失', 'error');
+    }
     loadProducts();
   } catch (err) {
     showToast(err.message, 'error');
@@ -448,6 +452,7 @@ async function loadSiteConfig() {
     const data = await res.json();
     publicBaseUrl = data.publicUrl || null;
     googleClientId = data.googleClientId || null;
+    persistentStorage = data.persistentStorage !== false;
     if (googleClientId) ensureGoogleLoginReady();
 
     if (publicBaseUrl) {

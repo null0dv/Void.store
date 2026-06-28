@@ -4,6 +4,7 @@ const path = require('path');
 const fs = require('fs');
 const crypto = require('crypto');
 const { OAuth2Client } = require('google-auth-library');
+const productStore = require('./lib/product-store');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -15,7 +16,7 @@ const MEMBER_SESSION_MAX_AGE = 7 * 24 * 60 * 60 * 1000;
 
 const uploadsDir = path.join(__dirname, 'uploads');
 const dataDir = path.join(__dirname, 'data');
-const dataFile = path.join(dataDir, 'products.json');
+
 const membersFile = path.join(dataDir, 'members.json');
 const adminConfigFile = path.join(dataDir, 'admin-config.json');
 const siteConfigFile = path.join(dataDir, 'site-config.json');
@@ -26,7 +27,7 @@ const memberSessions = new Map();
 
 if (!fs.existsSync(uploadsDir)) fs.mkdirSync(uploadsDir, { recursive: true });
 if (!fs.existsSync(dataDir)) fs.mkdirSync(dataDir, { recursive: true });
-if (!fs.existsSync(dataFile)) fs.writeFileSync(dataFile, '[]', 'utf-8');
+
 if (!fs.existsSync(membersFile)) fs.writeFileSync(membersFile, '[]', 'utf-8');
 if (!fs.existsSync(siteConfigFile)) fs.writeFileSync(siteConfigFile, JSON.stringify({ publicUrl: null }, null, 2), 'utf-8');
 if (!fs.existsSync(googleConfigFile)) fs.writeFileSync(googleConfigFile, JSON.stringify({ clientId: '' }, null, 2), 'utf-8');
@@ -147,26 +148,10 @@ function requireAdmin(req, res, next) {
   res.status(401).json({ error: '需要管理員權限' });
 }
 
-function readProducts() {
-  return JSON.parse(fs.readFileSync(dataFile, 'utf-8'));
-}
-
-function writeProducts(products) {
-  fs.writeFileSync(dataFile, JSON.stringify(products, null, 2), 'utf-8');
-}
-
 initAdminConfig();
 
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => cb(null, uploadsDir),
-  filename: (req, file, cb) => {
-    const unique = Date.now() + '-' + Math.round(Math.random() * 1e9);
-    cb(null, unique + path.extname(file.originalname));
-  },
-});
-
 const upload = multer({
-  storage,
+  storage: multer.memoryStorage(),
   limits: { fileSize: 5 * 1024 * 1024 },
   fileFilter: (req, file, cb) => {
     const allowed = /jpeg|jpg|png|gif|webp/;
@@ -178,6 +163,12 @@ const upload = multer({
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+app.use((req, res, next) => {
+  if (req.path.startsWith('/api/')) {
+    res.set('Cache-Control', 'no-store');
+  }
+  next();
+});
 app.use(express.static(path.join(__dirname, 'public')));
 app.use('/uploads', express.static(uploadsDir));
 
@@ -193,12 +184,18 @@ app.get('/api/config', (req, res) => {
     publicUrl,
     googleClientId: google.clientId || null,
     isProduction: IS_PRODUCTION,
+    persistentStorage: productStore.usesPersistentStorage(),
+    storageBackend: productStore.usesSupabase() ? 'supabase' : 'local',
   });
 });
 
-app.get('/api/products', (req, res) => {
-  const products = readProducts().sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
-  res.json(products);
+app.get('/api/products', async (req, res) => {
+  try {
+    const products = await productStore.listProducts();
+    res.json(products);
+  } catch (err) {
+    res.status(500).json({ error: err.message || '讀取商品失敗' });
+  }
 });
 
 app.get('/api/admin/status', (req, res) => {
@@ -284,48 +281,34 @@ app.post('/api/member/logout', (req, res) => {
   res.json({ success: true });
 });
 
-app.post('/api/products', requireAdmin, upload.single('image'), (req, res) => {
+app.post('/api/products', requireAdmin, upload.single('image'), async (req, res) => {
   const { name, description, price, category } = req.body;
 
   if (!name || !price) {
-    if (req.file) fs.unlinkSync(req.file.path);
     return res.status(400).json({ error: '商品名稱與價格為必填' });
   }
 
-  const products = readProducts();
-  const image = req.file ? `/uploads/${req.file.filename}` : null;
-
-  const product = {
-    id: products.length > 0 ? Math.max(...products.map(p => p.id)) + 1 : 1,
-    name,
-    description: description || '',
-    price: parseFloat(price),
-    category: category || '其他',
-    image,
-    created_at: new Date().toLocaleString('zh-TW', { timeZone: 'Asia/Taipei' }),
-  };
-
-  products.push(product);
-  writeProducts(products);
-  res.status(201).json(product);
+  try {
+    const product = await productStore.createProduct(
+      { name, description, price, category },
+      req.file || null,
+    );
+    res.status(201).json(product);
+  } catch (err) {
+    res.status(500).json({ error: err.message || '上架失敗' });
+  }
 });
 
-app.delete('/api/products/:id', requireAdmin, (req, res) => {
-  const id = parseInt(req.params.id);
-  const products = readProducts();
-  const index = products.findIndex(p => p.id === id);
+app.delete('/api/products/:id', requireAdmin, async (req, res) => {
+  const id = parseInt(req.params.id, 10);
 
-  if (index === -1) return res.status(404).json({ error: '找不到商品' });
-
-  const product = products[index];
-  if (product.image) {
-    const imagePath = path.join(__dirname, product.image);
-    if (fs.existsSync(imagePath)) fs.unlinkSync(imagePath);
+  try {
+    const deleted = await productStore.deleteProduct(id);
+    if (!deleted) return res.status(404).json({ error: '找不到商品' });
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message || '刪除失敗' });
   }
-
-  products.splice(index, 1);
-  writeProducts(products);
-  res.json({ success: true });
 });
 
 app.listen(PORT, '0.0.0.0', () => {
@@ -335,5 +318,10 @@ app.listen(PORT, '0.0.0.0', () => {
   const google = readGoogleConfig();
   if (!google.clientId) {
     console.log('提示：設定 GOOGLE_CLIENT_ID 環境變數以啟用會員登入');
+  }
+  if (IS_PRODUCTION && !productStore.usesSupabase()) {
+    console.log('警告：未設定 Supabase，雲端商品會在重新部署或休眠後消失');
+  } else if (productStore.usesSupabase()) {
+    console.log('商品儲存：Supabase（持久化）');
   }
 });

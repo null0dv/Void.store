@@ -9,5 +9,6 @@ tunnel-err.log
 *.log
 .env
 .env.local
+data/products.json
 .DS_Store
 Thumbs.db
