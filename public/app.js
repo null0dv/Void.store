@@ -9,6 +9,9 @@ let lineGroupUrl = null;
 const CART_KEY = 'void-store-cart';
 const HISTORY_KEY = 'void-store-history';
 const MAX_HISTORY = 12;
+const GALLERY_SERIES = ['nullcraft', '二手選品', '礦石'];
+
+let activeSeriesFilter = 'all';
 
 const form = document.getElementById('uploadForm');
 const imageInput = document.getElementById('image');
@@ -71,6 +74,7 @@ const editId = document.getElementById('editId');
 const editName = document.getElementById('editName');
 const editPrice = document.getElementById('editPrice');
 const editCategory = document.getElementById('editCategory');
+const editSeries = document.getElementById('editSeries');
 const editStockType = document.getElementById('editStockType');
 const editDescription = document.getElementById('editDescription');
 const editImageInput = document.getElementById('editImage');
@@ -88,6 +92,7 @@ const publicUrlLabel = document.getElementById('publicUrlLabel');
 const lineGroupBtn = document.getElementById('lineGroupBtn');
 const lineCtaBanner = document.getElementById('lineCtaBanner');
 const lineGroupBannerBtn = document.getElementById('lineGroupBannerBtn');
+const filterTags = document.getElementById('filterTags');
 
 const fetchOpts = { credentials: 'include', cache: 'no-store' };
 
@@ -643,6 +648,7 @@ function openEditModal(product) {
   editName.value = product.name;
   editPrice.value = String(Math.round(product.price));
   editCategory.value = product.category || '其他';
+  editSeries.value = product.series || 'nullcraft';
   editStockType.value = normalizeStockType(product.stock_type);
   editDescription.value = product.description || '';
   resetEditImagePreview();
@@ -787,7 +793,7 @@ function openImageLightbox(product) {
   history.replaceState(null, '', `#product-${product.id}`);
   recordView(product.id);
 
-  lightboxCategory.textContent = product.category;
+  lightboxCategory.textContent = `${product.series || 'nullcraft'} · ${product.category}`;
   applyStockTypeBadge(lightboxStockType, product.stock_type);
   lightboxName.textContent = product.name;
   lightboxDesc.textContent = product.description || '暫無商品描述';
@@ -817,6 +823,72 @@ function closeImageLightbox() {
   }
 }
 
+function getFilteredProducts() {
+  if (activeSeriesFilter === 'all') return allProducts;
+  return allProducts.filter(product => (product.series || 'nullcraft') === activeSeriesFilter);
+}
+
+function countSeriesItems(series) {
+  if (series === 'all') return allProducts.length;
+  return allProducts.filter(product => (product.series || 'nullcraft') === series).length;
+}
+
+function updateFilterTags() {
+  if (!filterTags) return;
+
+  filterTags.querySelectorAll('.filter-tag').forEach(btn => {
+    const series = btn.dataset.series;
+    const count = countSeriesItems(series);
+    const label = series === 'all' ? 'ALL' : series;
+
+    btn.classList.toggle('active', series === activeSeriesFilter);
+    btn.innerHTML = `
+      <span class="filter-tag-label">${escapeHtml(label)}</span>
+      <span class="filter-tag-count">${count}</span>
+    `;
+    btn.disabled = series !== 'all' && count === 0;
+  });
+}
+
+function setSeriesFilter(series) {
+  activeSeriesFilter = series;
+  renderGallery();
+}
+
+function renderGallery() {
+  const filtered = getFilteredProducts();
+  const total = allProducts.length;
+
+  productCount.textContent = activeSeriesFilter === 'all'
+    ? `${total} ITEMS`
+    : `${filtered.length} / ${total} ITEMS`;
+
+  updateFilterTags();
+
+  if (total === 0) {
+    productsGrid.innerHTML = `
+      <div class="empty-state" id="emptyState">
+        <span class="empty-icon">◌</span>
+        <span class="empty-text">尚無商品</span>
+      </div>`;
+    return;
+  }
+
+  if (filtered.length === 0) {
+    productsGrid.innerHTML = `
+      <div class="empty-state" id="emptyState">
+        <span class="empty-icon">◌</span>
+        <span class="empty-text">此系列尚無作品</span>
+      </div>`;
+    return;
+  }
+
+  productsGrid.innerHTML = filtered.map(renderProduct).join('');
+  bindProductEvents();
+
+  if (location.hash.startsWith('#product-')) handleProductHash();
+}
+
 function renderProduct(product) {
   const imageHtml = product.image
     ? `<img src="${product.image}" alt="${escapeHtml(product.name)}">`
@@ -842,7 +914,10 @@ function renderProduct(product) {
         ${renderStockTypeBadge(product.stock_type)}
         <div class="card-overlay">
           <div class="card-meta-wrap">
-            <span class="card-badge">${escapeHtml(product.category)}</span>
+            <div class="card-badges">
+              <span class="card-badge card-badge-series">${escapeHtml(product.series || 'nullcraft')}</span>
+              <span class="card-badge">${escapeHtml(product.category)}</span>
+            </div>
             <div class="card-title">${escapeHtml(product.name)}</div>
             ${product.description ? `<div class="card-desc">${escapeHtml(product.description)}</div>` : ''}
             <div class="card-price">NT$ ${formatPrice(product.price)}</div>
@@ -925,26 +1000,9 @@ async function loadProducts() {
   try {
     const res = await fetch('/api/products');
     allProducts = await res.json();
-
-    productCount.textContent = `${allProducts.length} ITEMS`;
-
-    if (allProducts.length === 0) {
-      productsGrid.innerHTML = `
-        <div class="empty-state" id="emptyState">
-          <span class="empty-icon">◌</span>
-          <span class="empty-text">尚無商品</span>
-        </div>`;
-      renderRecentSection();
-      renderCartDrawer();
-      return;
-    }
-
-    productsGrid.innerHTML = allProducts.map(renderProduct).join('');
-    bindProductEvents();
+    renderGallery();
     renderRecentSection();
     renderCartDrawer();
-
-    if (location.hash.startsWith('#product-')) handleProductHash();
   } catch {
     showToast('載入商品失敗', 'error');
   }
@@ -1000,6 +1058,13 @@ form.addEventListener('submit', async e => {
     btnText.hidden = false;
     btnLoading.hidden = true;
   }
+});
+
+filterTags?.querySelectorAll('.filter-tag').forEach(btn => {
+  btn.addEventListener('click', () => {
+    if (btn.disabled) return;
+    setSeriesFilter(btn.dataset.series);
+  });
 });
 
 toggleFileInputOverlay(imageInput, true);

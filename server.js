@@ -211,7 +211,7 @@ app.post('/api/admin/change-password', requireAdmin, (req, res) => {
 });
 
 app.post('/api/products', requireAdmin, upload.single('image'), async (req, res) => {
-  const { name, description, price, category, stock_type } = req.body;
+  const { name, description, price, category, stock_type, series } = req.body;
 
   if (!name || !price) {
     return res.status(400).json({ error: '商品名稱與價格為必填' });
@@ -219,7 +219,7 @@ app.post('/api/products', requireAdmin, upload.single('image'), async (req, res)
 
   try {
     const product = await productStore.createProduct(
-      { name, description, price, category, stock_type },
+      { name, description, price, category, stock_type, series },
       req.file || null,
     );
     res.status(201).json(product);
@@ -230,7 +230,7 @@ app.post('/api/products', requireAdmin, upload.single('image'), async (req, res)
 
 app.put('/api/products/:id', requireAdmin, upload.single('image'), async (req, res) => {
   const id = parseInt(req.params.id, 10);
-  const { name, description, price, category, stock_type } = req.body;
+  const { name, description, price, category, stock_type, series } = req.body;
 
   if (!name || !price) {
     return res.status(400).json({ error: '商品名稱與價格為必填' });
@@ -239,7 +239,7 @@ app.put('/api/products/:id', requireAdmin, upload.single('image'), async (req, r
   try {
     const product = await productStore.updateProduct(
       id,
-      { name, description, price, category, stock_type },
+      { name, description, price, category, stock_type, series },
       req.file || null,
     );
     if (!product) return res.status(404).json({ error: '找不到商品' });

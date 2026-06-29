@@ -223,6 +223,13 @@ body {
   border-bottom-color: var(--text);
 }
 
+.gallery-body {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  overflow: hidden;
+}
+
 .gallery-view {
   flex: 1;
   min-height: 0;
@@ -230,6 +237,90 @@ body {
   padding: 16px;
   scrollbar-width: thin;
   scrollbar-color: rgba(255, 255, 255, 0.07) transparent;
+}
+
+.gallery-filter {
+  width: 172px;
+  flex-shrink: 0;
+  border-left: 1px solid var(--line);
+  padding: 14px 12px;
+  overflow-y: auto;
+  background: linear-gradient(180deg, rgba(12, 11, 15, 0.96) 0%, rgba(9, 8, 12, 0.98) 100%);
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.07) transparent;
+}
+
+.gallery-filter .sec-label {
+  margin-bottom: 10px;
+}
+
+.filter-tags {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.filter-tag {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid var(--line2);
+  border-radius: 8px;
+  background: var(--glass);
+  color: var(--muted);
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  cursor: pointer;
+  transition: all 0.18s;
+  text-align: left;
+}
+
+.filter-tag:hover:not(:disabled) {
+  color: var(--text);
+  border-color: rgba(220, 220, 220, 0.12);
+  background: var(--glass2);
+}
+
+.filter-tag.active {
+  color: var(--text);
+  border-color: var(--accent2);
+  background: var(--glass2);
+  box-shadow: 0 0 14px rgba(200, 200, 200, 0.06);
+}
+
+.filter-tag:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.filter-tag-label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.filter-tag-count {
+  flex-shrink: 0;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--muted);
+  font-size: 9px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.filter-tag.active .filter-tag-count {
+  color: var(--accent2);
+  background: rgba(200, 200, 200, 0.1);
 }
 
 .gallery-grid {
@@ -586,6 +677,19 @@ body {
 .lb-badges .card-type-badge {
   position: static;
   pointer-events: none;
+}
+
+.card-badge-series {
+  color: var(--accent2);
+  border-color: rgba(220, 220, 220, 0.18);
+  background: rgba(200, 200, 200, 0.08);
+}
+
+.card-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  width: 100%;
 }
 
 .card-title {
@@ -1411,6 +1515,31 @@ body {
 
   .sidebar {
     width: 260px;
+  }
+
+  .gallery-body {
+    flex-direction: column;
+  }
+
+  .gallery-filter {
+    order: -1;
+    width: 100%;
+    border-left: none;
+    border-bottom: 1px solid var(--line);
+    padding: 10px 12px;
+    flex-shrink: 0;
+  }
+
+  .filter-tags {
+    flex-direction: row;
+    overflow-x: auto;
+    padding-bottom: 2px;
+  }
+
+  .filter-tag {
+    width: auto;
+    min-width: 108px;
+    flex-shrink: 0;
   }
 }
 

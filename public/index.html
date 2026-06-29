@@ -39,7 +39,14 @@
               <label class="field-label" for="price">價格 NT$ <span class="req">*</span></label>
               <input class="field-input" type="number" id="price" name="price" placeholder="0" min="0" step="1" required>
 
-              <label class="field-label" for="category">分類</label>
+              <label class="field-label" for="series">系列</label>
+              <select class="sel" id="series" name="series">
+                <option value="nullcraft" selected>nullcraft</option>
+                <option value="二手選品">二手選品</option>
+                <option value="礦石">礦石</option>
+              </select>
+
+              <label class="field-label" for="category">品項</label>
               <select class="sel" id="category" name="category">
                 <option value="銀飾">銀飾</option>
                 <option value="墜飾">墜飾</option>
@@ -91,7 +98,8 @@
       <div class="center-tabs">
         <div class="center-tab active">GALLERY</div>
       </div>
-      <div class="gallery-view" id="galleryView">
+      <div class="gallery-body">
+        <div class="gallery-view" id="galleryView">
         <section class="line-cta-banner" id="lineCtaBanner" hidden>
           <div class="line-cta-copy">
             <span class="line-cta-title">想看最新上架？</span>
@@ -114,6 +122,16 @@
             <span class="empty-text">尚無商品</span>
           </div>
         </div>
+        </div>
+        <aside class="gallery-filter" id="galleryFilter" aria-label="分類檢視">
+          <div class="sec-label">分類檢視</div>
+          <nav class="filter-tags" id="filterTags">
+            <button type="button" class="filter-tag active" data-series="all">ALL</button>
+            <button type="button" class="filter-tag" data-series="nullcraft">nullcraft</button>
+            <button type="button" class="filter-tag" data-series="二手選品">二手選品</button>
+            <button type="button" class="filter-tag" data-series="礦石">礦石</button>
+          </nav>
+        </aside>
       </div>
     </div>
   </div>
@@ -186,7 +204,14 @@
           <label class="field-label" for="editPrice">價格 NT$ <span class="req">*</span></label>
           <input class="field-input" type="number" id="editPrice" name="price" min="0" step="1" required>
 
-          <label class="field-label" for="editCategory">分類</label>
+          <label class="field-label" for="editSeries">系列</label>
+          <select class="sel" id="editSeries" name="series">
+            <option value="nullcraft">nullcraft</option>
+            <option value="二手選品">二手選品</option>
+            <option value="礦石">礦石</option>
+          </select>
+
+          <label class="field-label" for="editCategory">品項</label>
           <select class="sel" id="editCategory" name="category">
             <option value="銀飾">銀飾</option>
             <option value="墜飾">墜飾</option>
