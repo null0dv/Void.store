@@ -99,8 +99,7 @@ const cancelEdit = document.getElementById('cancelEdit');
 const editSubmitBtn = document.getElementById('editSubmitBtn');
 const publicUrlLabel = document.getElementById('publicUrlLabel');
 const lineGroupBtn = document.getElementById('lineGroupBtn');
-const lineCtaBanner = document.getElementById('lineCtaBanner');
-const lineGroupBannerBtn = document.getElementById('lineGroupBannerBtn');
+const eventSlotBtn = document.getElementById('eventSlotBtn');
 const filterTags = document.getElementById('filterTags');
 const randomBrowseBtn = document.getElementById('randomBrowseBtn');
 const randomBrowseIndicator = document.getElementById('randomBrowseIndicator');
@@ -259,11 +258,7 @@ function openLineGroup() {
 
 function updateLineUi() {
   const hasGroup = Boolean(lineGroupUrl);
-  const showGuestLine = !isAdmin && hasGroup;
-
   lineGroupBtn.hidden = !hasGroup;
-  lineCtaBanner.hidden = !showGuestLine;
-  lineGroupBannerBtn.hidden = !hasGroup;
 }
 
 function renderCartDrawer() {
@@ -464,7 +459,10 @@ copyCartBtn.addEventListener('click', async () => {
 });
 
 lineGroupBtn.addEventListener('click', openLineGroup);
-lineGroupBannerBtn.addEventListener('click', openLineGroup);
+
+eventSlotBtn?.addEventListener('click', e => {
+  e.preventDefault();
+});
 
 adminLogoutBtn.addEventListener('click', async () => {
   await fetch('/api/admin/logout', { method: 'POST', ...fetchOpts });
