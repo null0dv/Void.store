@@ -4,6 +4,7 @@ const path = require('path');
 const fs = require('fs');
 const crypto = require('crypto');
 const productStore = require('./lib/product-store');
+const categoryStore = require('./lib/categories');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -26,6 +27,7 @@ if (!fs.existsSync(siteConfigFile)) {
     publicUrl: null,
     lineInquiryUrl: null,
     lineGroupUrl: null,
+    customCategories: [],
   }, null, 2), 'utf-8');
 }
 
@@ -158,7 +160,30 @@ app.get('/api/config', (req, res) => {
     storageBackend: productStore.usesSupabase() ? 'supabase' : 'local',
     lineInquiryUrl: site.lineInquiryUrl || null,
     lineGroupUrl: site.lineGroupUrl || null,
+    categories: categoryStore.getCategories(),
   });
+});
+
+app.post('/api/admin/categories', requireAdmin, (req, res) => {
+  const result = categoryStore.addCustomCategory(req.body?.name);
+  if (!result.ok) {
+    return res.status(400).json({ error: result.error });
+  }
+  res.json({ success: true, categories: result.categories });
+});
+
+app.put('/api/products/reorder', requireAdmin, async (req, res) => {
+  const { order } = req.body || {};
+  if (!Array.isArray(order) || order.length === 0) {
+    return res.status(400).json({ error: '請提供商品排序' });
+  }
+
+  try {
+    const products = await productStore.reorderProducts(order);
+    res.json({ success: true, products });
+  } catch (err) {
+    res.status(500).json({ error: err.message || '排序失敗' });
+  }
 });
 
 app.get('/api/products', async (req, res) => {

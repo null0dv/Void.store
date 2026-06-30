@@ -329,6 +329,79 @@ body {
   column-gap: 8px;
 }
 
+.gallery-grid--shuffle {
+  column-fill: balance;
+}
+
+.gallery-grid--shuffle .product-card {
+  margin-top: var(--rand-offset, 0);
+}
+
+.gallery-grid--reorder .product-card {
+  cursor: default;
+}
+
+.product-card.is-dragging {
+  opacity: 0.45;
+  transform: scale(0.98);
+}
+
+.product-card.is-drag-over {
+  outline: 1px dashed rgba(200, 200, 200, 0.35);
+  outline-offset: 3px;
+}
+
+.drag-handle {
+  position: absolute;
+  top: 7px;
+  right: 7px;
+  z-index: 4;
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  border: 1px solid var(--line2);
+  background: rgba(9, 8, 12, 0.82);
+  color: var(--muted);
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: -0.12em;
+  cursor: grab;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  backdrop-filter: blur(6px);
+}
+
+.drag-handle:active {
+  cursor: grabbing;
+}
+
+.gallery-grid--reorder .card-actions {
+  top: 40px;
+}
+
+.reorder-hint {
+  margin: 0 0 10px;
+  font-size: 9px;
+  color: var(--muted);
+  letter-spacing: 0.06em;
+}
+
+.category-add-row {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+
+.category-add-row .field-input {
+  flex: 1;
+  margin: 0;
+}
+
+.layout-sec-label {
+  margin-top: 14px;
+}
+
 /* FORM */
 .form-stack {
   display: flex;

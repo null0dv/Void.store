@@ -47,19 +47,11 @@
               </select>
 
               <label class="field-label" for="category">品項</label>
-              <select class="sel" id="category" name="category">
-                <option value="銀飾">銀飾</option>
-                <option value="墜飾">墜飾</option>
-                <option value="耳環">耳環</option>
-                <option value="戒指">戒指</option>
-                <option value="AI畫作">AI畫作</option>
-                <option value="服飾">服飾</option>
-                <option value="食品">食品</option>
-                <option value="3C電子">3C電子</option>
-                <option value="居家生活">居家生活</option>
-                <option value="美妝保養">美妝保養</option>
-                <option value="其他" selected>其他</option>
-              </select>
+              <select class="sel" id="category" name="category"></select>
+              <div class="category-add-row" id="categoryAddRow" hidden>
+                <input class="field-input" type="text" id="categoryNew" maxlength="24" placeholder="輸入新品項名稱">
+                <button type="button" class="tb-btn" id="addCategoryBtn">新增品項</button>
+              </div>
 
               <label class="field-label" for="stockType">屬性</label>
               <select class="sel" id="stockType" name="stock_type">
@@ -117,6 +109,7 @@
           </div>
           <div class="recent-grid" id="recentGrid"></div>
         </section>
+        <p class="reorder-hint" id="reorderHint" hidden>拖曳卡片可調整排序（請使用「排序」排版）</p>
         <div class="gallery-grid" id="productsGrid">
           <div class="empty-state" id="emptyState">
             <span class="empty-icon">◌</span>
@@ -131,6 +124,11 @@
             <button type="button" class="filter-tag" data-series="nullcraft">nullcraft</button>
             <button type="button" class="filter-tag" data-series="二手選品">二手選品</button>
             <button type="button" class="filter-tag" data-series="礦石">礦石</button>
+          </nav>
+          <div class="sec-label layout-sec-label">排版</div>
+          <nav class="filter-tags layout-tags" id="layoutTags">
+            <button type="button" class="filter-tag active" data-layout="ordered">排序</button>
+            <button type="button" class="filter-tag" data-layout="shuffle">隨機</button>
           </nav>
         </aside>
       </div>
@@ -215,19 +213,7 @@
           </select>
 
           <label class="field-label" for="editCategory">品項</label>
-          <select class="sel" id="editCategory" name="category">
-            <option value="銀飾">銀飾</option>
-            <option value="墜飾">墜飾</option>
-            <option value="耳環">耳環</option>
-            <option value="戒指">戒指</option>
-            <option value="AI畫作">AI畫作</option>
-            <option value="服飾">服飾</option>
-            <option value="食品">食品</option>
-            <option value="3C電子">3C電子</option>
-            <option value="居家生活">居家生活</option>
-            <option value="美妝保養">美妝保養</option>
-            <option value="其他">其他</option>
-          </select>
+          <select class="sel" id="editCategory" name="category"></select>
 
           <label class="field-label" for="editStockType">屬性</label>
           <select class="sel" id="editStockType" name="stock_type">

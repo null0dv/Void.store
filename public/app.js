@@ -8,10 +8,18 @@ let lineGroupUrl = null;
 
 const CART_KEY = 'void-store-cart';
 const HISTORY_KEY = 'void-store-history';
+const LAYOUT_KEY = 'void-store-layout';
 const MAX_HISTORY = 12;
 const GALLERY_SERIES = ['nullcraft', '二手選品', '礦石'];
+const DEFAULT_CATEGORIES = [
+  '銀飾', '墜飾', '耳環', '戒指', 'AI畫作',
+  '服飾', '食品', '3C電子', '居家生活', '美妝保養', '其他',
+];
 
 let activeSeriesFilter = 'all';
+let galleryLayout = 'ordered';
+let allCategories = [...DEFAULT_CATEGORIES];
+let dragProductId = null;
 
 const form = document.getElementById('uploadForm');
 const imageInput = document.getElementById('image');
@@ -96,6 +104,12 @@ const lineGroupBtn = document.getElementById('lineGroupBtn');
 const lineCtaBanner = document.getElementById('lineCtaBanner');
 const lineGroupBannerBtn = document.getElementById('lineGroupBannerBtn');
 const filterTags = document.getElementById('filterTags');
+const layoutTags = document.getElementById('layoutTags');
+const categorySelect = document.getElementById('category');
+const categoryAddRow = document.getElementById('categoryAddRow');
+const categoryNew = document.getElementById('categoryNew');
+const addCategoryBtn = document.getElementById('addCategoryBtn');
+const reorderHint = document.getElementById('reorderHint');
 
 const fetchOpts = { credentials: 'include', cache: 'no-store' };
 
@@ -615,12 +629,177 @@ function setAdminMode(admin) {
   loginBtn.hidden = admin;
   changePasswordBtn.hidden = !admin;
   adminLogoutBtn.hidden = !admin;
+  if (categoryAddRow) categoryAddRow.hidden = !admin;
   subtitle.textContent = admin ? '管理員模式' : '瀏覽精選商品';
   modeLabel.textContent = admin ? 'ADMIN' : 'VIEWER';
   modeLabel.classList.toggle('ok', admin);
   updateLineUi();
   updateLightboxActions();
   if (!admin) closeEditModal();
+  renderGallery();
+}
+
+function populateCategorySelects(preferredValue) {
+  const selects = [categorySelect, editCategory].filter(Boolean);
+  const fallback = preferredValue || '其他';
+
+  selects.forEach(select => {
+    const previous = select.value;
+    select.innerHTML = allCategories.map(cat => (
+      `<option value="${escapeHtml(cat)}">${escapeHtml(cat)}</option>`
+    )).join('');
+
+    const next = [preferredValue, previous, fallback].find(
+      value => value && allCategories.includes(value),
+    );
+    select.value = next || allCategories[allCategories.length - 1];
+  });
+}
+
+async function addCustomCategory() {
+  const name = categoryNew?.value.trim();
+  if (!name) {
+    showToast('請輸入品項名稱', 'error');
+    return;
+  }
+
+  try {
+    const res = await fetch('/api/admin/categories', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name }),
+      ...fetchOpts,
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || '新增失敗');
+
+    allCategories = data.categories || allCategories;
+    populateCategorySelects(name);
+    if (categoryNew) categoryNew.value = '';
+    showToast(`已新增品項：${name}`);
+  } catch (err) {
+    showToast(err.message, 'error');
+  }
+}
+
+function updateLayoutTags() {
+  layoutTags?.querySelectorAll('[data-layout]').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.layout === galleryLayout);
+  });
+}
+
+function setGalleryLayout(layout) {
+  galleryLayout = layout === 'shuffle' ? 'shuffle' : 'ordered';
+  writeStorage(LAYOUT_KEY, galleryLayout);
+  updateLayoutTags();
+  renderGallery();
+}
+
+function shuffleProducts(products) {
+  const list = [...products];
+  for (let i = list.length - 1; i > 0; i -= 1) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [list[i], list[j]] = [list[j], list[i]];
+  }
+  return list;
+}
+
+function getDisplayProducts(filtered) {
+  if (galleryLayout === 'shuffle') return shuffleProducts(filtered);
+  return filtered;
+}
+
+function applyMasonryStagger() {
+  productsGrid.classList.toggle('gallery-grid--shuffle', galleryLayout === 'shuffle');
+  productsGrid.querySelectorAll('.product-card').forEach((card, index) => {
+    if (galleryLayout !== 'shuffle') {
+      card.style.removeProperty('--rand-offset');
+      return;
+    }
+    const offset = (index * 19 + Number(card.dataset.id) * 11) % 32;
+    card.style.setProperty('--rand-offset', `${offset}px`);
+  });
+}
+
+function canDragReorder() {
+  return isAdmin && galleryLayout === 'ordered' && activeSeriesFilter === 'all';
+}
+
+async function saveProductOrder(orderIds) {
+  try {
+    const res = await fetch('/api/products/reorder', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ order: orderIds }),
+      ...fetchOpts,
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || '排序失敗');
+    allProducts = data.products || allProducts;
+    renderGallery();
+    showToast('排序已更新');
+  } catch (err) {
+    showToast(err.message, 'error');
+  }
+}
+
+async function moveProductOrder(sourceId, targetId) {
+  const ids = allProducts.map(product => product.id);
+  const from = ids.indexOf(sourceId);
+  const to = ids.indexOf(targetId);
+  if (from === -1 || to === -1 || from === to) return;
+
+  ids.splice(from, 1);
+  ids.splice(to, 0, sourceId);
+  await saveProductOrder(ids);
+}
+
+function bindDragReorder() {
+  const enabled = canDragReorder();
+  productsGrid.classList.toggle('gallery-grid--reorder', enabled);
+  if (reorderHint) reorderHint.hidden = !enabled;
+
+  productsGrid.querySelectorAll('.drag-handle').forEach(handle => {
+    handle.draggable = enabled;
+  });
+}
+
+function initDragReorder() {
+  productsGrid.addEventListener('dragstart', e => {
+    const handle = e.target.closest('.drag-handle');
+    if (!handle || !canDragReorder()) return;
+    dragProductId = Number(handle.dataset.id);
+    e.dataTransfer.effectAllowed = 'move';
+    handle.closest('.product-card')?.classList.add('is-dragging');
+  });
+
+  productsGrid.addEventListener('dragend', () => {
+    dragProductId = null;
+    productsGrid.querySelectorAll('.product-card').forEach(card => {
+      card.classList.remove('is-dragging', 'is-drag-over');
+    });
+  });
+
+  productsGrid.addEventListener('dragover', e => {
+    if (!canDragReorder() || !dragProductId) return;
+    const card = e.target.closest('.product-card');
+    if (!card) return;
+    e.preventDefault();
+    productsGrid.querySelectorAll('.product-card').forEach(item => {
+      item.classList.toggle('is-drag-over', item === card);
+    });
+  });
+
+  productsGrid.addEventListener('drop', e => {
+    if (!canDragReorder() || !dragProductId) return;
+    const card = e.target.closest('.product-card');
+    if (!card) return;
+    e.preventDefault();
+    productsGrid.querySelectorAll('.product-card').forEach(item => {
+      item.classList.remove('is-drag-over');
+    });
+    moveProductOrder(dragProductId, Number(card.dataset.id));
+  });
 }
 
 function showPreview(file) {
@@ -706,7 +885,7 @@ function openEditModal(product) {
   editId.value = String(product.id);
   editName.value = product.name;
   editPrice.value = String(Math.round(product.price));
-  editCategory.value = product.category || '其他';
+  populateCategorySelects(product.category || '其他');
   editSeries.value = product.series || 'nullcraft';
   editStockType.value = normalizeStockType(product.stock_type);
   if (editSold) editSold.checked = isProductSold(product);
@@ -826,6 +1005,10 @@ async function loadSiteConfig() {
     publicBaseUrl = data.publicUrl || null;
     persistentStorage = data.persistentStorage !== false;
     lineGroupUrl = data.lineGroupUrl || null;
+    if (Array.isArray(data.categories) && data.categories.length > 0) {
+      allCategories = data.categories;
+    }
+    populateCategorySelects();
     updateLineUi();
 
     if (publicBaseUrl) {
@@ -944,8 +1127,10 @@ function renderGallery() {
     return;
   }
 
-  productsGrid.innerHTML = filtered.map(renderProduct).join('');
+  productsGrid.innerHTML = getDisplayProducts(filtered).map(renderProduct).join('');
   bindProductEvents();
+  bindDragReorder();
+  applyMasonryStagger();
 
   if (location.hash.startsWith('#product-')) handleProductHash();
 }
@@ -970,9 +1155,14 @@ function renderProduct(product) {
     ? ''
     : `<button class="card-action-btn share-btn" data-action="share" data-id="${product.id}">SHARE</button>`;
 
+  const dragHandleHtml = canDragReorder()
+    ? `<button type="button" class="drag-handle" data-id="${product.id}" title="拖曳排序" aria-label="拖曳排序">⋮⋮</button>`
+    : '';
+
   return `
     <article class="gallery-card product-card${sold ? ' product-card--sold' : ''}" id="product-${product.id}" data-id="${product.id}">
       <div class="card-img-wrap product-image-wrap" data-action="view" data-id="${product.id}">
+        ${dragHandleHtml}
         ${imageHtml}
         ${sold ? '<div class="sold-stamp" aria-hidden="true">SOLD</div>' : ''}
         ${renderStockTypeBadge(product.stock_type)}
@@ -1019,6 +1209,7 @@ function bindProductEvents() {
   productsGrid.querySelectorAll('.product-card').forEach(card => {
     card.addEventListener('click', e => {
       if (e.target.closest('[data-action]')) return;
+      if (e.target.closest('.drag-handle')) return;
       const id = Number(card.dataset.id);
       const product = allProducts.find(p => p.id === id);
       if (product) openImageLightbox(product);
@@ -1131,6 +1322,23 @@ filterTags?.querySelectorAll('.filter-tag').forEach(btn => {
     setSeriesFilter(btn.dataset.series);
   });
 });
+
+layoutTags?.querySelectorAll('[data-layout]').forEach(btn => {
+  btn.addEventListener('click', () => setGalleryLayout(btn.dataset.layout));
+});
+
+addCategoryBtn?.addEventListener('click', addCustomCategory);
+categoryNew?.addEventListener('keydown', e => {
+  if (e.key === 'Enter') {
+    e.preventDefault();
+    addCustomCategory();
+  }
+});
+
+galleryLayout = readStorage(LAYOUT_KEY, 'shuffle');
+updateLayoutTags();
+populateCategorySelects('其他');
+initDragReorder();
 
 toggleFileInputOverlay(imageInput, true);
 toggleFileInputOverlay(editImageInput, true);
