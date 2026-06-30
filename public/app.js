@@ -808,7 +808,14 @@ function bindFlipModeEvents() {
 
 function initFlipMode() {
   productsGrid.querySelectorAll('.product-card').forEach(card => {
-    card.classList.add('card--face-down');
+    card.classList.remove('card--face-down');
+  });
+  requestAnimationFrame(() => {
+    requestAnimationFrame(() => {
+      productsGrid.querySelectorAll('.product-card').forEach(card => {
+        card.classList.add('card--face-down');
+      });
+    });
   });
   bindFlipModeEvents();
 }
