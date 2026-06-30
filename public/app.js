@@ -59,6 +59,8 @@ const lightboxImage = document.getElementById('lightboxImage');
 const lightboxPlaceholder = document.getElementById('lightboxPlaceholder');
 const lightboxCategory = document.getElementById('lightboxCategory');
 const lightboxStockType = document.getElementById('lightboxStockType');
+const lightboxSoldBadge = document.getElementById('lightboxSoldBadge');
+const lightboxSoldBtn = document.getElementById('lightboxSoldBtn');
 const lightboxName = document.getElementById('lightboxName');
 const lightboxDesc = document.getElementById('lightboxDesc');
 const lightboxPrice = document.getElementById('lightboxPrice');
@@ -76,6 +78,7 @@ const editPrice = document.getElementById('editPrice');
 const editCategory = document.getElementById('editCategory');
 const editSeries = document.getElementById('editSeries');
 const editStockType = document.getElementById('editStockType');
+const editSold = document.getElementById('editSold');
 const editDescription = document.getElementById('editDescription');
 const editImageInput = document.getElementById('editImage');
 const editDropZone = document.getElementById('editDropZone');
@@ -138,9 +141,17 @@ function updateCartBadge() {
   cartBadge.hidden = count === 0;
 }
 
+function isProductSold(product) {
+  return Boolean(product?.sold);
+}
+
 function addToCart(productId) {
   const product = allProducts.find(p => p.id === productId);
   if (!product) return;
+  if (isProductSold(product)) {
+    showToast('此商品已售出', 'error');
+    return;
+  }
 
   const cart = getCart();
   const index = cart.findIndex(item => item.id === productId);
@@ -495,6 +506,10 @@ lightboxDeleteBtn.addEventListener('click', () => {
   if (currentLightboxId) deleteProduct(currentLightboxId);
 });
 
+lightboxSoldBtn?.addEventListener('click', () => {
+  if (currentLightboxId) toggleProductSold(currentLightboxId);
+});
+
 editImageInput.addEventListener('change', () => {
   if (editImageInput.files[0]) showEditPreview(editImageInput.files[0]);
 });
@@ -553,6 +568,7 @@ editForm.addEventListener('submit', async e => {
   btnLoading.hidden = false;
 
   const formData = new FormData(editForm);
+  formData.set('sold', editSold?.checked ? '1' : '0');
 
   try {
     const res = await fetch(`/api/products/${editingProductId}`, {
@@ -563,6 +579,7 @@ editForm.addEventListener('submit', async e => {
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || '更新失敗');
 
+    if (data.sold) removeFromCart(editingProductId);
     closeEditModal();
     showToast('商品已更新');
     loadProducts();
@@ -640,6 +657,48 @@ function updateLightboxActions() {
   if (lightboxAdminActions) lightboxAdminActions.hidden = !isAdmin;
 }
 
+function updateLightboxSoldUI(product) {
+  const sold = isProductSold(product);
+
+  if (lightboxSoldBadge) lightboxSoldBadge.hidden = !sold;
+  if (lightboxSoldBtn) lightboxSoldBtn.textContent = sold ? 'RESTOCK' : 'SOLD';
+  if (lightboxCartBtn) lightboxCartBtn.hidden = !isAdmin && sold;
+  if (lightboxPrice) {
+    lightboxPrice.classList.toggle('lb-price--sold', sold && !isAdmin);
+  }
+}
+
+async function toggleProductSold(id) {
+  const product = allProducts.find(p => p.id === id);
+  if (!product || !isAdmin) return;
+
+  const nextSold = !isProductSold(product);
+
+  try {
+    const res = await fetch(`/api/products/${id}/sold`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ sold: nextSold }),
+      ...fetchOpts,
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data.error || '更新失敗');
+
+    const index = allProducts.findIndex(p => p.id === id);
+    if (index !== -1) allProducts[index] = data;
+
+    if (nextSold) removeFromCart(id);
+    renderGallery();
+    renderRecentSection();
+    renderCartDrawer();
+
+    if (currentLightboxId === id) updateLightboxSoldUI(data);
+    showToast(nextSold ? '已標記 SOLD' : '已恢復上架');
+  } catch (err) {
+    showToast(err.message, 'error');
+  }
+}
+
 function openEditModal(product) {
   if (!isAdmin || !product) return;
 
@@ -650,6 +709,7 @@ function openEditModal(product) {
   editCategory.value = product.category || '其他';
   editSeries.value = product.series || 'nullcraft';
   editStockType.value = normalizeStockType(product.stock_type);
+  if (editSold) editSold.checked = isProductSold(product);
   editDescription.value = product.description || '';
   resetEditImagePreview();
 
@@ -810,6 +870,7 @@ function openImageLightbox(product) {
   }
 
   updateLightboxActions();
+  updateLightboxSoldUI(product);
   imageLightbox.classList.add('is-open');
   document.body.style.overflow = 'hidden';
 }
@@ -890,16 +951,18 @@ function renderGallery() {
 }
 
 function renderProduct(product) {
+  const sold = isProductSold(product);
   const imageHtml = product.image
     ? `<img src="${product.image}" alt="${escapeHtml(product.name)}">`
     : `<div class="product-image-placeholder">◌</div>`;
 
   const adminBtns = isAdmin
-    ? `<button class="card-action-btn edit-btn" data-action="edit" data-id="${product.id}">EDIT</button>
+    ? `<button class="card-action-btn sold-btn" data-action="toggle-sold" data-id="${product.id}">${sold ? 'RESTOCK' : 'SOLD'}</button>
+       <button class="card-action-btn edit-btn" data-action="edit" data-id="${product.id}">EDIT</button>
        <button class="delete-btn" data-action="delete" data-id="${product.id}">DEL</button>`
     : '';
 
-  const cartBtnHtml = isAdmin
+  const cartBtnHtml = isAdmin || sold
     ? ''
     : `<button class="card-action-btn" data-action="cart" data-id="${product.id}">CART</button>`;
 
@@ -908,9 +971,10 @@ function renderProduct(product) {
     : `<button class="card-action-btn share-btn" data-action="share" data-id="${product.id}">SHARE</button>`;
 
   return `
-    <article class="gallery-card product-card" id="product-${product.id}" data-id="${product.id}">
+    <article class="gallery-card product-card${sold ? ' product-card--sold' : ''}" id="product-${product.id}" data-id="${product.id}">
       <div class="card-img-wrap product-image-wrap" data-action="view" data-id="${product.id}">
         ${imageHtml}
+        ${sold ? '<div class="sold-stamp" aria-hidden="true">SOLD</div>' : ''}
         ${renderStockTypeBadge(product.stock_type)}
         <div class="card-overlay">
           <div class="card-meta-wrap">
@@ -920,7 +984,7 @@ function renderProduct(product) {
             </div>
             <div class="card-title">${escapeHtml(product.name)}</div>
             ${product.description ? `<div class="card-desc">${escapeHtml(product.description)}</div>` : ''}
-            <div class="card-price">NT$ ${formatPrice(product.price)}</div>
+            <div class="card-price${sold ? ' card-price--sold' : ''}">NT$ ${formatPrice(product.price)}</div>
           </div>
         </div>
         <div class="card-actions">
@@ -947,7 +1011,8 @@ function bindProductEvents() {
       else if (el.dataset.action === 'edit') {
         closeImageLightbox();
         openEditModal(product);
-      } else if (el.dataset.action === 'delete') deleteProduct(id);
+      } else if (el.dataset.action === 'toggle-sold') toggleProductSold(id);
+      else if (el.dataset.action === 'delete') deleteProduct(id);
     });
   });
 

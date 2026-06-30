@@ -230,7 +230,7 @@ app.post('/api/products', requireAdmin, upload.single('image'), async (req, res)
 
 app.put('/api/products/:id', requireAdmin, upload.single('image'), async (req, res) => {
   const id = parseInt(req.params.id, 10);
-  const { name, description, price, category, stock_type, series } = req.body;
+  const { name, description, price, category, stock_type, series, sold } = req.body;
 
   if (!name || !price) {
     return res.status(400).json({ error: '商品名稱與價格為必填' });
@@ -239,13 +239,26 @@ app.put('/api/products/:id', requireAdmin, upload.single('image'), async (req, r
   try {
     const product = await productStore.updateProduct(
       id,
-      { name, description, price, category, stock_type, series },
+      { name, description, price, category, stock_type, series, sold },
       req.file || null,
     );
     if (!product) return res.status(404).json({ error: '找不到商品' });
     res.json(product);
   } catch (err) {
     res.status(500).json({ error: err.message || '更新失敗' });
+  }
+});
+
+app.patch('/api/products/:id/sold', requireAdmin, async (req, res) => {
+  const id = parseInt(req.params.id, 10);
+  const sold = req.body.sold === true || req.body.sold === 'true';
+
+  try {
+    const product = await productStore.setProductSold(id, sold);
+    if (!product) return res.status(404).json({ error: '找不到商品' });
+    res.json(product);
+  } catch (err) {
+    res.status(500).json({ error: err.message || '更新售出狀態失敗' });
   }
 });
 

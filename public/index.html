@@ -153,6 +153,7 @@
         <div class="lb-badges">
           <span class="card-badge" id="lightboxCategory"></span>
           <span class="card-type-badge" id="lightboxStockType" hidden></span>
+          <span class="sold-badge" id="lightboxSoldBadge" hidden>SOLD</span>
         </div>
         <h2 class="lb-title" id="lightboxName"></h2>
         <p class="lb-desc" id="lightboxDesc"></p>
@@ -163,6 +164,7 @@
             <button class="action-btn" id="lightboxShareBtn" type="button">SHARE</button>
           </div>
           <div class="lb-actions" id="lightboxAdminActions" hidden>
+            <button class="action-btn" id="lightboxSoldBtn" type="button">SOLD</button>
             <button class="action-btn" id="lightboxEditBtn" type="button">EDIT</button>
             <button class="action-btn action-btn-danger" id="lightboxDeleteBtn" type="button">DEL</button>
           </div>
@@ -230,6 +232,11 @@
             <option value="現貨">現貨</option>
             <option value="AI製">AI製</option>
           </select>
+
+          <label class="field-check">
+            <input type="checkbox" id="editSold" name="sold" value="1">
+            <span>標記為已售出 (SOLD)</span>
+          </label>
 
           <label class="field-label" for="editDescription">描述</label>
           <textarea class="prompt-area" id="editDescription" name="description" rows="3" placeholder="商品特色、規格..."></textarea>

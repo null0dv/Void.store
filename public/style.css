@@ -343,6 +343,21 @@ body {
   margin-top: 4px;
 }
 
+.field-check {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 6px;
+  font-size: 10px;
+  color: var(--muted);
+  letter-spacing: 0.04em;
+  cursor: pointer;
+}
+
+.field-check input {
+  accent-color: var(--red);
+}
+
 .req {
   color: var(--red);
 }
@@ -690,6 +705,75 @@ body {
   flex-wrap: wrap;
   gap: 4px;
   width: 100%;
+}
+
+.product-card--sold .card-img-wrap img,
+.product-card--sold .product-image-placeholder {
+  filter: grayscale(0.55) brightness(0.72);
+}
+
+.product-card--sold .card-overlay {
+  opacity: 1;
+  background: linear-gradient(to top, rgba(0, 0, 0, 0.82) 0%, rgba(0, 0, 0, 0.35) 55%, transparent 100%);
+}
+
+.sold-stamp {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 3;
+  pointer-events: none;
+  font-family: var(--sans);
+  font-size: clamp(1.4rem, 5vw, 2rem);
+  font-weight: 800;
+  letter-spacing: 0.22em;
+  color: rgba(255, 255, 255, 0.92);
+  text-shadow: 0 2px 18px rgba(0, 0, 0, 0.8);
+}
+
+.sold-stamp::before {
+  content: '';
+  position: absolute;
+  width: 72%;
+  max-width: 180px;
+  aspect-ratio: 2.8 / 1;
+  border: 2px solid rgba(232, 64, 64, 0.75);
+  border-radius: 4px;
+  transform: rotate(-12deg);
+  box-shadow: inset 0 0 0 1px rgba(232, 64, 64, 0.25);
+}
+
+.sold-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 8px;
+  border-radius: 4px;
+  font-size: 9px;
+  font-family: var(--mono);
+  font-weight: 500;
+  letter-spacing: 0.14em;
+  color: #ffb4b4;
+  background: rgba(232, 64, 64, 0.16);
+  border: 1px solid rgba(232, 64, 64, 0.4);
+}
+
+.card-price--sold,
+.lb-price--sold {
+  color: var(--muted);
+  text-decoration: line-through;
+  text-decoration-color: rgba(232, 64, 64, 0.55);
+}
+
+.sold-btn {
+  color: var(--red);
+  border-color: rgba(232, 64, 64, 0.35);
+}
+
+.sold-btn:hover {
+  background: rgba(232, 64, 64, 0.12);
+  color: #ffb4b4;
 }
 
 .card-title {
