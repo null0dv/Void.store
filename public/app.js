@@ -18,8 +18,11 @@ const DEFAULT_CATEGORIES = [
 let activeSeriesFilter = 'all';
 let randomBrowseMode = false;
 let flipBrowseMode = false;
+let flipRevealInProgress = false;
 let flipGridClickHandler = null;
 let flipOutsideClickHandler = null;
+
+const FLIP_REVEAL_MS = 620;
 let allCategories = [...DEFAULT_CATEGORIES];
 
 const form = document.getElementById('uploadForm');
@@ -759,10 +762,48 @@ function flipAllCardsDown() {
 }
 
 function revealFlipCard(card) {
+  const wasFaceDown = card.classList.contains('card--face-down');
   productsGrid.querySelectorAll('.product-card').forEach(item => {
     item.classList.add('card--face-down');
   });
   card.classList.remove('card--face-down');
+  return wasFaceDown;
+}
+
+function waitForFlipReveal(card) {
+  return new Promise(resolve => {
+    const inner = card.querySelector('.card-flip-inner');
+    if (!inner) {
+      resolve();
+      return;
+    }
+
+    let settled = false;
+    const done = () => {
+      if (settled) return;
+      settled = true;
+      inner.removeEventListener('transitionend', onEnd);
+      clearTimeout(timer);
+      resolve();
+    };
+
+    const onEnd = e => {
+      if (e.target === inner && e.propertyName === 'transform') done();
+    };
+
+    const timer = setTimeout(done, FLIP_REVEAL_MS + 50);
+    inner.addEventListener('transitionend', onEnd);
+  });
+}
+
+async function openFlipProduct(card, product) {
+  const needsFlip = revealFlipCard(card);
+  if (needsFlip) {
+    flipRevealInProgress = true;
+    await waitForFlipReveal(card);
+    flipRevealInProgress = false;
+  }
+  openImageLightbox(product);
 }
 
 function teardownFlipModeEvents() {
@@ -789,10 +830,9 @@ function bindFlipModeEvents() {
 
     const id = Number(card.dataset.id);
     const product = allProducts.find(p => p.id === id);
-    if (!product) return;
+    if (!product || flipRevealInProgress) return;
 
-    revealFlipCard(card);
-    openImageLightbox(product);
+    void openFlipProduct(card, product);
   };
 
   flipOutsideClickHandler = e => {
@@ -1299,10 +1339,14 @@ function handleProductHash() {
 
   const card = document.getElementById(`product-${id}`);
   if (card) {
-    if (flipBrowseMode) revealFlipCard(card);
     card.scrollIntoView({ behavior: 'smooth', block: 'center' });
     highlightProduct(id);
     setTimeout(() => highlightProduct(null), 2000);
+  }
+
+  if (flipBrowseMode && card) {
+    if (!flipRevealInProgress) void openFlipProduct(card, product);
+    return;
   }
 
   openImageLightbox(product);
