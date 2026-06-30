@@ -23,6 +23,7 @@ let flipGridClickHandler = null;
 let flipOutsideClickHandler = null;
 
 const FLIP_REVEAL_MS = 620;
+const LIGHTBOX_EXPAND_MS = 560;
 let allCategories = [...DEFAULT_CATEGORIES];
 
 const form = document.getElementById('uploadForm');
@@ -66,6 +67,7 @@ const adminPassword = document.getElementById('adminPassword');
 const cancelLogin = document.getElementById('cancelLogin');
 const subtitle = document.getElementById('subtitle');
 const imageLightbox = document.getElementById('imageLightbox');
+const lightboxImageWrap = document.getElementById('lightboxImageWrap');
 const closeLightboxBtn = document.getElementById('closeLightbox');
 const lightboxImage = document.getElementById('lightboxImage');
 const lightboxPlaceholder = document.getElementById('lightboxPlaceholder');
@@ -797,13 +799,14 @@ function waitForFlipReveal(card) {
 }
 
 async function openFlipProduct(card, product) {
-  const needsFlip = revealFlipCard(card);
-  if (needsFlip) {
-    flipRevealInProgress = true;
-    await waitForFlipReveal(card);
+  flipRevealInProgress = true;
+  try {
+    const needsFlip = revealFlipCard(card);
+    if (needsFlip) await waitForFlipReveal(card);
+    await openImageLightbox(product, { fromCard: card });
+  } finally {
     flipRevealInProgress = false;
   }
-  openImageLightbox(product);
 }
 
 function teardownFlipModeEvents() {
@@ -1115,7 +1118,7 @@ async function loadSiteConfig() {
   }
 }
 
-function openImageLightbox(product) {
+function populateLightbox(product) {
   currentLightboxId = product.id;
   history.replaceState(null, '', `#product-${product.id}`);
   recordView(product.id);
@@ -1138,12 +1141,100 @@ function openImageLightbox(product) {
 
   updateLightboxActions();
   updateLightboxSoldUI(product);
+}
+
+function waitForElementTransition(el, property, durationMs) {
+  return new Promise(resolve => {
+    let settled = false;
+    const done = () => {
+      if (settled) return;
+      settled = true;
+      el.removeEventListener('transitionend', onEnd);
+      clearTimeout(timer);
+      resolve();
+    };
+    const onEnd = e => {
+      if (e.target === el && e.propertyName === property) done();
+    };
+    const timer = setTimeout(done, durationMs + 60);
+    el.addEventListener('transitionend', onEnd);
+  });
+}
+
+async function animateLightboxFromCard(card, product) {
+  const sourceEl = card.querySelector('.card-face--front img')
+    || card.querySelector('.card-img-wrap img')
+    || card.querySelector('.card-face--front');
+
+  if (!sourceEl || !product.image || !lightboxImageWrap) {
+    imageLightbox.classList.remove('is-expanding', 'is-expanding-visible', 'is-expanded');
+    imageLightbox.classList.add('is-open');
+    document.body.style.overflow = 'hidden';
+    return;
+  }
+
+  const sourceRect = sourceEl.getBoundingClientRect();
+  imageLightbox.classList.add('is-open', 'is-expanding');
+  document.body.style.overflow = 'hidden';
+
+  await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+
+  const targetRect = lightboxImageWrap.getBoundingClientRect();
+  const startScale = Math.min(
+    sourceRect.width / Math.max(targetRect.width, 1),
+    sourceRect.height / Math.max(targetRect.height, 1),
+  );
+  const sourceCenterX = sourceRect.left + sourceRect.width / 2;
+  const sourceCenterY = sourceRect.top + sourceRect.height / 2;
+  const targetCenterX = targetRect.left + targetRect.width / 2;
+  const targetCenterY = targetRect.top + targetRect.height / 2;
+
+  const flyer = document.createElement('div');
+  flyer.className = 'lb-expand-flyer';
+  const flyImg = document.createElement('img');
+  flyImg.src = product.image;
+  flyImg.alt = product.name;
+  flyer.appendChild(flyImg);
+  document.body.appendChild(flyer);
+
+  flyer.style.left = `${targetRect.left}px`;
+  flyer.style.top = `${targetRect.top}px`;
+  flyer.style.width = `${targetRect.width}px`;
+  flyer.style.height = `${targetRect.height}px`;
+  flyer.style.transform = `translate(${sourceCenterX - targetCenterX}px, ${sourceCenterY - targetCenterY}px) scale(${startScale})`;
+
+  requestAnimationFrame(() => {
+    requestAnimationFrame(() => {
+      imageLightbox.classList.add('is-expanding-visible');
+      flyer.style.transform = 'translate(0, 0) scale(1)';
+    });
+  });
+
+  await waitForElementTransition(flyer, 'transform', LIGHTBOX_EXPAND_MS);
+  flyer.remove();
+  imageLightbox.classList.remove('is-expanding', 'is-expanding-visible');
+  imageLightbox.classList.add('is-expanded');
+  requestAnimationFrame(() => {
+    imageLightbox.classList.remove('is-expanded');
+  });
+}
+
+async function openImageLightbox(product, options = {}) {
+  populateLightbox(product);
+
+  if (options.fromCard && product.image) {
+    await animateLightboxFromCard(options.fromCard, product);
+    return;
+  }
+
+  imageLightbox.classList.remove('is-expanding', 'is-expanding-visible', 'is-expanded');
   imageLightbox.classList.add('is-open');
   document.body.style.overflow = 'hidden';
 }
 
 function closeImageLightbox() {
-  imageLightbox.classList.remove('is-open');
+  document.querySelector('.lb-expand-flyer')?.remove();
+  imageLightbox.classList.remove('is-open', 'is-expanding', 'is-expanding-visible', 'is-expanded');
   document.body.style.overflow = cartDrawerBg.classList.contains('is-open') ? 'hidden' : '';
   currentLightboxId = null;
   if (flipBrowseMode) flipAllCardsDown();

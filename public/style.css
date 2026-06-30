@@ -1047,6 +1047,56 @@ body {
   display: flex;
 }
 
+.modal-bg.is-expanding {
+  background: rgba(6, 6, 6, 0);
+  transition: background 0.55s ease;
+}
+
+.modal-bg.is-expanding.is-expanding-visible {
+  background: #060606;
+}
+
+.modal-bg.is-expanding .lb-image-wrap,
+.modal-bg.is-expanding .lb-panel,
+.modal-bg.is-expanding .lb-close {
+  opacity: 0;
+}
+
+.modal-bg.is-expanding.is-expanding-visible .lb-panel,
+.modal-bg.is-expanding.is-expanding-visible .lb-close {
+  opacity: 1;
+  transition: opacity 0.42s ease 0.28s;
+}
+
+.modal-bg.is-expanded .lb-image-wrap {
+  animation: lbImageReveal 0.22s ease;
+}
+
+@keyframes lbImageReveal {
+  from { opacity: 0.72; }
+  to { opacity: 1; }
+}
+
+.lb-expand-flyer {
+  position: fixed;
+  z-index: 101;
+  pointer-events: none;
+  border-radius: 10px;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  background: rgba(0, 0, 0, 0.45);
+  transform-origin: center center;
+  transition: transform 0.56s cubic-bezier(0.33, 0.08, 0.2, 1);
+  will-change: transform;
+}
+
+.lb-expand-flyer img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  display: block;
+}
+
 .lb-close {
   position: absolute;
   top: 16px;
