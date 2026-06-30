@@ -1215,23 +1215,6 @@ body {
   background: rgba(255, 255, 255, 0.02);
 }
 
-.event-slot-label,
-.event-slot-status {
-  font-family: var(--mono);
-  font-size: 9px;
-  letter-spacing: 0.08em;
-  color: var(--muted2);
-  flex: 1;
-}
-
-.event-slot-label {
-  text-align: right;
-}
-
-.event-slot-status {
-  text-align: left;
-}
-
 .event-slot-btn {
   display: inline-flex;
   align-items: center;
@@ -1798,13 +1781,7 @@ body {
   }
 
   .event-slot {
-    gap: 10px;
     padding: 10px 12px;
-  }
-
-  .event-slot-label,
-  .event-slot-status {
-    font-size: 8px;
   }
 
   .event-slot-btn {
