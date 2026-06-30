@@ -334,6 +334,44 @@ body {
   margin-top: var(--rand-offset, 0);
 }
 
+.gallery-grid--physics {
+  position: relative;
+  column-count: unset;
+  display: block;
+  min-height: 68vh;
+  overflow: hidden;
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.gallery-grid--physics .product-card {
+  position: absolute;
+  left: 0;
+  top: 0;
+  margin: 0 !important;
+  break-inside: auto;
+  will-change: transform;
+  cursor: grab;
+  touch-action: none;
+}
+
+.gallery-grid--physics .product-card:active {
+  cursor: grabbing;
+}
+
+.gallery-grid--physics .empty-state {
+  position: relative;
+  column-span: unset;
+}
+
+.physics-hint {
+  margin: 0 0 10px;
+  font-size: 9px;
+  color: var(--muted2);
+  letter-spacing: 0.08em;
+}
+
 .category-add-row {
   display: flex;
   gap: 6px;

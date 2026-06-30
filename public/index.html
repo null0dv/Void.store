@@ -109,6 +109,7 @@
           </div>
           <div class="recent-grid" id="recentGrid"></div>
         </section>
+        <p class="physics-hint">拖曳卡片可碰撞 · 輕點開啟商品</p>
         <div class="gallery-grid gallery-grid--shuffle" id="productsGrid">
           <div class="empty-state" id="emptyState">
             <span class="empty-icon">◌</span>
@@ -291,6 +292,8 @@
 
   <div class="toast" id="toast" hidden></div>
 
+  <script src="https://cdn.jsdelivr.net/npm/matter-js@0.20.0/build/matter.min.js"></script>
+  <script src="gallery-physics.js"></script>
   <script src="app.js"></script>
 </body>
 </html>

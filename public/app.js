@@ -1005,6 +1005,9 @@ function renderGallery() {
 
   updateFilterTags();
 
+  window.GalleryPhysics?.destroy();
+  productsGrid.classList.remove('gallery-grid--physics');
+
   if (total === 0) {
     productsGrid.innerHTML = `
       <div class="empty-state" id="emptyState">
@@ -1025,9 +1028,22 @@ function renderGallery() {
 
   productsGrid.innerHTML = getDisplayProducts(filtered).map(renderProduct).join('');
   bindProductEvents();
-  applyMasonryStagger();
+  initGalleryPhysics();
 
   if (location.hash.startsWith('#product-')) handleProductHash();
+}
+
+function initGalleryPhysics() {
+  productsGrid.classList.add('gallery-grid--physics');
+  requestAnimationFrame(() => {
+    requestAnimationFrame(() => {
+      const mounted = window.GalleryPhysics?.mount(productsGrid, productId => {
+        const product = allProducts.find(p => p.id === productId);
+        if (product) openImageLightbox(product);
+      });
+      if (!mounted) applyMasonryStagger();
+    });
+  });
 }
 
 function renderProduct(product) {
@@ -1096,15 +1112,16 @@ function bindProductEvents() {
     });
   });
 
-  productsGrid.querySelectorAll('.product-card').forEach(card => {
-    card.addEventListener('click', e => {
-      if (e.target.closest('[data-action]')) return;
-      if (e.target.closest('.drag-handle')) return;
-      const id = Number(card.dataset.id);
-      const product = allProducts.find(p => p.id === id);
-      if (product) openImageLightbox(product);
+  if (!window.GalleryPhysics?.isActive()) {
+    productsGrid.querySelectorAll('.product-card').forEach(card => {
+      card.addEventListener('click', e => {
+        if (e.target.closest('[data-action]')) return;
+        const id = Number(card.dataset.id);
+        const product = allProducts.find(p => p.id === id);
+        if (product) openImageLightbox(product);
+      });
     });
-  });
+  }
 }
 
 function highlightProduct(id) {
