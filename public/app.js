@@ -17,6 +17,9 @@ const DEFAULT_CATEGORIES = [
 
 let activeSeriesFilter = 'all';
 let randomBrowseMode = false;
+let flipBrowseMode = false;
+let flipGridClickHandler = null;
+let flipOutsideClickHandler = null;
 let allCategories = [...DEFAULT_CATEGORIES];
 
 const form = document.getElementById('uploadForm');
@@ -103,6 +106,7 @@ const eventSlotBtn = document.getElementById('eventSlotBtn');
 const filterTags = document.getElementById('filterTags');
 const randomBrowseBtn = document.getElementById('randomBrowseBtn');
 const randomBrowseIndicator = document.getElementById('randomBrowseIndicator');
+const flipBrowseBtn = document.getElementById('flipBrowseBtn');
 const physicsHint = document.querySelector('.physics-hint');
 const categorySelect = document.getElementById('category');
 const categoryAddRow = document.getElementById('categoryAddRow');
@@ -719,8 +723,18 @@ function updateRandomBrowseBtn() {
   }
 }
 
+function updateFlipBrowseBtn() {
+  if (!flipBrowseBtn) return;
+  flipBrowseBtn.classList.toggle('active', flipBrowseMode);
+  flipBrowseBtn.setAttribute('aria-pressed', String(flipBrowseMode));
+}
+
 function updateGalleryHint() {
   if (!physicsHint) return;
+  if (flipBrowseMode) {
+    physicsHint.textContent = '翻牌模式 · 點選卡片翻開作品 · 點空白處蓋回';
+    return;
+  }
   physicsHint.textContent = randomBrowseMode
     ? '隨機排列瀏覽 · 點選商品開啟詳情'
     : '拖曳卡片可碰撞 · 輕點開啟商品';
@@ -728,22 +742,100 @@ function updateGalleryHint() {
 
 function toggleRandomBrowse() {
   randomBrowseMode = !randomBrowseMode;
+  if (randomBrowseMode) flipBrowseMode = false;
   renderGallery();
+}
+
+function toggleFlipBrowse() {
+  flipBrowseMode = !flipBrowseMode;
+  if (flipBrowseMode) randomBrowseMode = false;
+  renderGallery();
+}
+
+function flipAllCardsDown() {
+  productsGrid.querySelectorAll('.product-card').forEach(card => {
+    card.classList.add('card--face-down');
+  });
+}
+
+function revealFlipCard(card) {
+  productsGrid.querySelectorAll('.product-card').forEach(item => {
+    item.classList.add('card--face-down');
+  });
+  card.classList.remove('card--face-down');
+}
+
+function teardownFlipModeEvents() {
+  if (flipGridClickHandler) {
+    productsGrid.removeEventListener('click', flipGridClickHandler);
+    flipGridClickHandler = null;
+  }
+  if (flipOutsideClickHandler) {
+    document.removeEventListener('click', flipOutsideClickHandler, true);
+    flipOutsideClickHandler = null;
+  }
+}
+
+function bindFlipModeEvents() {
+  teardownFlipModeEvents();
+
+  flipGridClickHandler = e => {
+    const card = e.target.closest('.product-card');
+    if (!card) {
+      flipAllCardsDown();
+      return;
+    }
+    if (e.target.closest('[data-action]')) return;
+
+    const id = Number(card.dataset.id);
+    const product = allProducts.find(p => p.id === id);
+    if (!product) return;
+
+    revealFlipCard(card);
+    openImageLightbox(product);
+  };
+
+  flipOutsideClickHandler = e => {
+    if (!flipBrowseMode) return;
+    if (e.target.closest('#productsGrid')) return;
+    if (e.target.closest('#flipBrowseBtn')) return;
+    flipAllCardsDown();
+  };
+
+  productsGrid.addEventListener('click', flipGridClickHandler);
+  document.addEventListener('click', flipOutsideClickHandler, true);
+}
+
+function initFlipMode() {
+  productsGrid.querySelectorAll('.product-card').forEach(card => {
+    card.classList.add('card--face-down');
+  });
+  bindFlipModeEvents();
 }
 
 function initGalleryLayout() {
   resetGalleryCardLayout();
+  teardownFlipModeEvents();
   updateRandomBrowseBtn();
+  updateFlipBrowseBtn();
   updateGalleryHint();
 
-  if (randomBrowseMode) {
+  if (flipBrowseMode) {
     productsGrid.classList.remove('gallery-grid--physics');
+    productsGrid.classList.add('gallery-grid--shuffle', 'gallery-grid--flip');
+    applyMasonryStagger();
+    initFlipMode();
+    return;
+  }
+
+  if (randomBrowseMode) {
+    productsGrid.classList.remove('gallery-grid--physics', 'gallery-grid--flip');
     productsGrid.classList.add('gallery-grid--shuffle');
     applyMasonryStagger();
     return;
   }
 
-  productsGrid.classList.remove('gallery-grid--shuffle');
+  productsGrid.classList.remove('gallery-grid--shuffle', 'gallery-grid--flip');
   initGalleryPhysics();
 }
 
@@ -1007,6 +1099,7 @@ function closeImageLightbox() {
   imageLightbox.classList.remove('is-open');
   document.body.style.overflow = cartDrawerBg.classList.contains('is-open') ? 'hidden' : '';
   currentLightboxId = null;
+  if (flipBrowseMode) flipAllCardsDown();
   if (location.hash.startsWith('#product-')) {
     history.replaceState(null, '', location.pathname);
   }
@@ -1055,7 +1148,8 @@ function renderGallery() {
   updateFilterTags();
 
   window.GalleryPhysics?.destroy();
-  productsGrid.classList.remove('gallery-grid--physics');
+  teardownFlipModeEvents();
+  productsGrid.classList.remove('gallery-grid--physics', 'gallery-grid--flip');
 
   if (total === 0) {
     productsGrid.innerHTML = `
@@ -1117,25 +1211,34 @@ function renderProduct(product) {
 
   return `
     <article class="gallery-card product-card${sold ? ' product-card--sold' : ''}" id="product-${product.id}" data-id="${product.id}">
-      <div class="card-img-wrap product-image-wrap" data-action="view" data-id="${product.id}">
-        ${imageHtml}
-        ${sold ? '<div class="sold-stamp" aria-hidden="true">SOLD</div>' : ''}
-        ${renderStockTypeBadge(product.stock_type)}
-        <div class="card-overlay">
-          <div class="card-meta-wrap">
-            <div class="card-badges">
-              <span class="card-badge card-badge-series">${escapeHtml(product.series || 'nullcraft')}</span>
-              <span class="card-badge">${escapeHtml(product.category)}</span>
-            </div>
-            <div class="card-title">${escapeHtml(product.name)}</div>
-            ${product.description ? `<div class="card-desc">${escapeHtml(product.description)}</div>` : ''}
-            <div class="card-price${sold ? ' card-price--sold' : ''}">NT$ ${formatPrice(product.price)}</div>
+      <div class="card-flip-inner">
+        <div class="card-face card-face--back" aria-hidden="true">
+          <div class="card-back-surface">
+            <span class="card-back-dot"></span>
           </div>
         </div>
-        <div class="card-actions">
-          ${cartBtnHtml}
-          ${shareBtnHtml}
-          ${adminBtns}
+        <div class="card-face card-face--front">
+          <div class="card-img-wrap product-image-wrap" data-action="view" data-id="${product.id}">
+            ${imageHtml}
+            ${sold ? '<div class="sold-stamp" aria-hidden="true">SOLD</div>' : ''}
+            ${renderStockTypeBadge(product.stock_type)}
+            <div class="card-overlay">
+              <div class="card-meta-wrap">
+                <div class="card-badges">
+                  <span class="card-badge card-badge-series">${escapeHtml(product.series || 'nullcraft')}</span>
+                  <span class="card-badge">${escapeHtml(product.category)}</span>
+                </div>
+                <div class="card-title">${escapeHtml(product.name)}</div>
+                ${product.description ? `<div class="card-desc">${escapeHtml(product.description)}</div>` : ''}
+                <div class="card-price${sold ? ' card-price--sold' : ''}">NT$ ${formatPrice(product.price)}</div>
+              </div>
+            </div>
+            <div class="card-actions">
+              ${cartBtnHtml}
+              ${shareBtnHtml}
+              ${adminBtns}
+            </div>
+          </div>
         </div>
       </div>
     </article>
@@ -1161,7 +1264,7 @@ function bindProductEvents() {
     });
   });
 
-  if (!window.GalleryPhysics?.isActive()) {
+  if (!window.GalleryPhysics?.isActive() && !flipBrowseMode) {
     productsGrid.querySelectorAll('.product-card').forEach(card => {
       card.addEventListener('click', e => {
         if (e.target.closest('[data-action]')) return;
@@ -1189,6 +1292,7 @@ function handleProductHash() {
 
   const card = document.getElementById(`product-${id}`);
   if (card) {
+    if (flipBrowseMode) revealFlipCard(card);
     card.scrollIntoView({ behavior: 'smooth', block: 'center' });
     highlightProduct(id);
     setTimeout(() => highlightProduct(null), 2000);
@@ -1280,6 +1384,7 @@ filterTags?.querySelectorAll('.filter-tag').forEach(btn => {
 });
 
 randomBrowseBtn?.addEventListener('click', toggleRandomBrowse);
+flipBrowseBtn?.addEventListener('click', toggleFlipBrowse);
 
 addCategoryBtn?.addEventListener('click', addCustomCategory);
 categoryNew?.addEventListener('keydown', e => {
