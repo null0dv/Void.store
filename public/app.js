@@ -16,6 +16,7 @@ const DEFAULT_CATEGORIES = [
 ];
 
 let activeSeriesFilter = 'all';
+let randomBrowseMode = false;
 let allCategories = [...DEFAULT_CATEGORIES];
 
 const form = document.getElementById('uploadForm');
@@ -101,6 +102,9 @@ const lineGroupBtn = document.getElementById('lineGroupBtn');
 const lineCtaBanner = document.getElementById('lineCtaBanner');
 const lineGroupBannerBtn = document.getElementById('lineGroupBannerBtn');
 const filterTags = document.getElementById('filterTags');
+const randomBrowseBtn = document.getElementById('randomBrowseBtn');
+const randomBrowseIndicator = document.getElementById('randomBrowseIndicator');
+const physicsHint = document.querySelector('.physics-hint');
 const categorySelect = document.getElementById('category');
 const categoryAddRow = document.getElementById('categoryAddRow');
 const categoryNew = document.getElementById('categoryNew');
@@ -698,6 +702,53 @@ function applyMasonryStagger() {
   });
 }
 
+function resetGalleryCardLayout() {
+  productsGrid.querySelectorAll('.product-card').forEach(card => {
+    card.style.transform = '';
+    card.style.width = '';
+    card.style.margin = '';
+    card.style.removeProperty('--rand-offset');
+  });
+  productsGrid.style.minHeight = '';
+}
+
+function updateRandomBrowseBtn() {
+  if (!randomBrowseBtn) return;
+  randomBrowseBtn.classList.toggle('active', randomBrowseMode);
+  randomBrowseBtn.setAttribute('aria-pressed', String(randomBrowseMode));
+  if (randomBrowseIndicator) {
+    randomBrowseIndicator.textContent = randomBrowseMode ? 'ON' : 'OFF';
+  }
+}
+
+function updateGalleryHint() {
+  if (!physicsHint) return;
+  physicsHint.textContent = randomBrowseMode
+    ? '隨機排列瀏覽 · 點選商品開啟詳情'
+    : '拖曳卡片可碰撞 · 輕點開啟商品';
+}
+
+function toggleRandomBrowse() {
+  randomBrowseMode = !randomBrowseMode;
+  renderGallery();
+}
+
+function initGalleryLayout() {
+  resetGalleryCardLayout();
+  updateRandomBrowseBtn();
+  updateGalleryHint();
+
+  if (randomBrowseMode) {
+    productsGrid.classList.remove('gallery-grid--physics');
+    productsGrid.classList.add('gallery-grid--shuffle');
+    applyMasonryStagger();
+    return;
+  }
+
+  productsGrid.classList.remove('gallery-grid--shuffle');
+  initGalleryPhysics();
+}
+
 function showPreview(file) {
   const reader = new FileReader();
   reader.onload = e => {
@@ -1028,7 +1079,7 @@ function renderGallery() {
 
   productsGrid.innerHTML = getDisplayProducts(filtered).map(renderProduct).join('');
   bindProductEvents();
-  initGalleryPhysics();
+  initGalleryLayout();
 
   if (location.hash.startsWith('#product-')) handleProductHash();
 }
@@ -1229,6 +1280,8 @@ filterTags?.querySelectorAll('.filter-tag').forEach(btn => {
     setSeriesFilter(btn.dataset.series);
   });
 });
+
+randomBrowseBtn?.addEventListener('click', toggleRandomBrowse);
 
 addCategoryBtn?.addEventListener('click', addCustomCategory);
 categoryNew?.addEventListener('keydown', e => {

@@ -323,6 +323,20 @@ body {
   background: rgba(200, 200, 200, 0.1);
 }
 
+.filter-divider {
+  height: 1px;
+  margin: 12px 0 10px;
+  background: var(--line2);
+}
+
+.filter-tag--mode {
+  margin-top: 6px;
+}
+
+.filter-tag--mode .filter-tag-label {
+  letter-spacing: 0.1em;
+}
+
 .gallery-grid {
   display: block;
   column-count: 4;
@@ -354,6 +368,7 @@ body {
   will-change: transform;
   cursor: grab;
   touch-action: none;
+  backface-visibility: hidden;
 }
 
 .gallery-grid--physics .product-card:active {

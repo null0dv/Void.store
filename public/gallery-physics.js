@@ -11,7 +11,17 @@ window.GalleryPhysics = (() => {
   let onTap = null;
   let dragStart = null;
 
+  function resetCardStyles() {
+    pairs.forEach(({ el }) => {
+      el.style.transform = '';
+      el.style.width = '';
+      el.style.margin = '';
+    });
+    if (container) container.style.minHeight = '';
+  }
+
   function destroy() {
+    resetCardStyles();
     if (resizeObserver) {
       resizeObserver.disconnect();
       resizeObserver = null;
@@ -68,9 +78,10 @@ window.GalleryPhysics = (() => {
 
   function syncCards() {
     pairs.forEach(({ body, el, halfW, halfH }) => {
-      const x = body.position.x - halfW;
-      const y = body.position.y - halfH;
-      el.style.transform = `translate3d(${x}px, ${y}px, 0) rotate(${body.angle}rad)`;
+      const x = Math.round(body.position.x - halfW);
+      const y = Math.round(body.position.y - halfH);
+      const angle = Math.abs(body.angularVelocity) < 0.002 ? 0 : body.angle;
+      el.style.transform = `translate3d(${x}px, ${y}px, 0) rotate(${angle}rad)`;
     });
   }
 
@@ -92,9 +103,12 @@ window.GalleryPhysics = (() => {
     const { Engine, Runner, Bodies, Body, Composite, Mouse, MouseConstraint, Events } = Matter;
 
     engine = Engine.create({
-      gravity: { x: 0, y: 0.45 },
+      gravity: { x: 0, y: 0.28 },
+      positionIterations: 8,
+      velocityIterations: 6,
+      enableSleeping: true,
     });
-    runner = Runner.create();
+    runner = Runner.create({ isFixed: true, delta: 1000 / 60 });
     Runner.run(runner, engine);
 
     const { width } = getBounds();
@@ -117,21 +131,21 @@ window.GalleryPhysics = (() => {
         rowHeight = 0;
       }
 
-      const jitterX = ((index * 37) % 24) - 12;
-      const jitterY = ((index * 53) % 20) - 10;
+      const jitterX = ((index * 37) % 16) - 8;
+      const jitterY = ((index * 53) % 12) - 6;
       const x = cursorX + jitterX;
       const y = cursorY + jitterY;
 
       const body = Bodies.rectangle(x, y, cardWidth, height, {
-        restitution: 0.72,
-        friction: 0.08,
-        frictionAir: 0.018,
-        density: 0.0012,
+        restitution: 0.52,
+        friction: 0.12,
+        frictionAir: 0.032,
+        density: 0.0009,
         chamfer: { radius: 10 },
         plugin: { productId: Number(el.dataset.id) },
       });
 
-      Body.setAngularVelocity(body, (Math.random() - 0.5) * 0.04);
+      Body.setAngularVelocity(body, (Math.random() - 0.5) * 0.015);
       pairs.push({ body, el, halfW, halfH });
       Composite.add(engine.world, body);
 
@@ -154,8 +168,8 @@ window.GalleryPhysics = (() => {
     mouseConstraint = MouseConstraint.create(engine, {
       mouse,
       constraint: {
-        stiffness: 0.14,
-        damping: 0.12,
+        stiffness: 0.22,
+        damping: 0.28,
         render: { visible: false },
       },
     });
@@ -180,6 +194,8 @@ window.GalleryPhysics = (() => {
       const dy = body.position.y - dragStart.y;
       if (Math.hypot(dx, dy) < 10 && onTap) {
         onTap(dragStart.id);
+      } else {
+        Body.setAngularVelocity(body, body.angularVelocity * 0.35);
       }
       dragStart = null;
     });
