@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="zh-TW">
+<html lang="en">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
@@ -17,8 +17,8 @@
   <header class="topbar">
     <div class="logo">VOID<span>.STORE</span></div>
     <div class="topbar-right">
-      <span class="status-text" id="subtitle">瀏覽精選商品</span>
-      <button class="tb-btn tb-btn-line" id="lineGroupBtn" type="button" hidden>LINE 群組</button>
+      <span class="status-text" id="subtitle">Browse curated items</span>
+      <button class="tb-btn tb-btn-line" id="lineGroupBtn" type="button" hidden>LINE GROUP</button>
       <button class="tb-btn" id="cartBtn" type="button">CART <span class="cart-badge" id="cartBadge" hidden>0</span></button>
       <button class="tb-btn tb-btn-subuser" id="subuserLoginBtn" type="button">ON AND ON</button>
       <button class="tb-btn tb-btn-null" id="loginBtn" type="button">_null</button>
@@ -31,49 +31,49 @@
     <aside class="sidebar" id="uploadSection" hidden aria-hidden="true">
       <div class="sidebar-scroll">
         <section class="ss">
-          <div class="sec-label">新增商品</div>
+          <div class="sec-label">NEW ITEM</div>
           <form id="uploadForm" enctype="multipart/form-data">
             <div class="form-stack">
-              <label class="field-label" for="name">名稱 <span class="req">*</span></label>
-              <input class="field-input" type="text" id="name" name="name" placeholder="手工陶瓷杯" required>
+              <label class="field-label" for="name">NAME <span class="req">*</span></label>
+              <input class="field-input" type="text" id="name" name="name" placeholder="Handmade ceramic cup" required>
 
-              <label class="field-label" for="price">價格 NT$ <span class="req">*</span></label>
+              <label class="field-label" for="price">PRICE NT$ <span class="req">*</span></label>
               <input class="field-input" type="number" id="price" name="price" placeholder="0" min="0" step="1" required>
 
-              <label class="field-label" for="series">系列</label>
+              <label class="field-label" for="series">SERIES</label>
               <select class="sel" id="series" name="series">
                 <option value="nullcraft" selected>nullcraft</option>
-                <option value="二手選品">二手選品</option>
-                <option value="礦石">礦石</option>
+                <option value="二手選品">PRE-LOVED</option>
+                <option value="礦石">MINERALS</option>
               </select>
 
-              <label class="field-label" for="category">品項</label>
+              <label class="field-label" for="category">CATEGORY</label>
               <select class="sel" id="category" name="category"></select>
               <div class="category-add-row" id="categoryAddRow" hidden>
-                <input class="field-input" type="text" id="categoryNew" maxlength="24" placeholder="輸入新品項名稱">
-                <button type="button" class="tb-btn" id="addCategoryBtn">新增品項</button>
+                <input class="field-input" type="text" id="categoryNew" maxlength="24" placeholder="New category name">
+                <button type="button" class="tb-btn" id="addCategoryBtn">ADD</button>
               </div>
 
-              <label class="field-label" for="stockType">屬性</label>
+              <label class="field-label" for="stockType">TYPE</label>
               <select class="sel" id="stockType" name="stock_type">
-                <option value="現貨" selected>現貨</option>
-                <option value="AI製">AI製</option>
+                <option value="現貨" selected>IN STOCK</option>
+                <option value="AI製">AI MADE</option>
               </select>
 
-              <label class="field-label" for="description">描述</label>
-              <textarea class="prompt-area" id="description" name="description" rows="3" placeholder="商品特色、規格..."></textarea>
+              <label class="field-label" for="description">DESCRIPTION</label>
+              <textarea class="prompt-area" id="description" name="description" rows="3" placeholder="Details, specs..."></textarea>
 
-              <label class="field-label" for="image">圖片</label>
+              <label class="field-label" for="image">IMAGE</label>
               <div class="img-upload" id="dropZone">
                 <input type="file" id="image" name="image" accept="image/jpeg,image/png,image/webp,image/gif" class="file-input-overlay">
                 <div class="drop-content" id="dropContent">
-                  <span class="ul">點擊選擇圖片</span>
+                  <span class="ul">CLICK TO SELECT</span>
                   <span class="hint">JPG / PNG / WebP · 5MB</span>
                 </div>
                 <div class="preview" id="preview" hidden>
-                  <img id="previewImg" alt="預覽">
-                  <label class="replace-img-label" for="image">更換</label>
-                  <button type="button" class="remove-btn" id="removeImage" title="移除">✕</button>
+                  <img id="previewImg" alt="Preview">
+                  <label class="replace-img-label" for="image">REPLACE</label>
+                  <button type="button" class="remove-btn" id="removeImage" title="Remove">✕</button>
                 </div>
               </div>
             </div>
@@ -94,8 +94,8 @@
       </div>
       <div class="gallery-body">
         <div class="gallery-view" id="galleryView">
-        <section class="event-slot" id="eventSlot" aria-label="活動專區">
-          <button type="button" class="event-slot-btn" id="eventSlotBtn" disabled aria-label="抽獎活動（未開放）">
+        <section class="event-slot" id="eventSlot" aria-label="Events">
+          <button type="button" class="event-slot-btn" id="eventSlotBtn" disabled aria-label="Raffle (coming soon)">
             <span class="dice-seven" aria-hidden="true">
               <i></i><i></i><i></i><i></i><i></i><i></i><i></i>
             </span>
@@ -103,34 +103,35 @@
         </section>
         <section class="recent-section" id="recentSection" hidden>
           <div class="recent-header">
-            <span class="sec-label">最近瀏覽</span>
-            <button type="button" class="link-btn" id="clearHistoryBtn">清除</button>
+            <span class="sec-label">RECENT</span>
+            <button type="button" class="link-btn" id="clearHistoryBtn">CLEAR</button>
           </div>
           <div class="recent-grid" id="recentGrid"></div>
         </section>
-        <p class="physics-hint">拖曳卡片可碰撞 · 輕點開啟商品</p>
+        <p class="physics-hint">Drag cards to collide · Tap to open item</p>
         <div class="gallery-grid gallery-grid--shuffle" id="productsGrid">
           <div class="empty-state" id="emptyState">
             <span class="empty-icon">◌</span>
-            <span class="empty-text">尚無商品</span>
+            <span class="empty-text">NO ITEMS YET</span>
           </div>
         </div>
         </div>
-        <aside class="gallery-filter" id="galleryFilter" aria-label="分類檢視">
-          <div class="sec-label">分類檢視</div>
+        <aside class="gallery-filter" id="galleryFilter" aria-label="Filter">
+          <div class="sec-label">FILTER</div>
           <nav class="filter-tags" id="filterTags">
             <button type="button" class="filter-tag active" data-series="all">ALL</button>
             <button type="button" class="filter-tag" data-series="nullcraft">nullcraft</button>
-            <button type="button" class="filter-tag" data-series="二手選品">二手選品</button>
-            <button type="button" class="filter-tag" data-series="礦石">礦石</button>
+            <button type="button" class="filter-tag" data-series="二手選品">PRE-LOVED</button>
+            <button type="button" class="filter-tag" data-series="礦石">MINERALS</button>
           </nav>
           <div class="filter-divider" aria-hidden="true"></div>
-          <div class="sec-label">瀏覽</div>
+          <div class="sec-label">VIEW</div>
           <button type="button" class="filter-tag filter-tag--mode" id="randomBrowseBtn" aria-pressed="false">
-            <span class="filter-tag-label">:: 隨機</span>
+            <span class="filter-tag-label">:: RANDOM</span>
             <span class="filter-tag-count" id="randomBrowseIndicator">OFF</span>
           </button>
-          <button type="button" class="filter-tag filter-tag--mode filter-tag--icon-only" id="flipBrowseBtn" aria-label="翻牌" aria-pressed="false">
+          <button type="button" class="filter-tag filter-tag--mode" id="flipBrowseBtn" aria-label="Flip cards" aria-pressed="false">
+            <span class="filter-tag-label">flip</span>
             <span class="filter-tag-icon dice-three" aria-hidden="true">
               <i></i><i></i><i></i>
             </span>
@@ -147,7 +148,7 @@
   </footer>
 
   <div class="modal-bg" id="imageLightbox">
-    <button class="lb-close" id="closeLightbox" type="button" aria-label="關閉">✕</button>
+    <button class="lb-close" id="closeLightbox" type="button" aria-label="Close">✕</button>
     <div class="lb-body">
       <div class="lb-image-wrap" id="lightboxImageWrap">
         <img class="lb-image" id="lightboxImage" alt="">
@@ -178,21 +179,21 @@
   </div>
 
   <div class="cart-drawer-bg" id="cartDrawerBg">
-    <aside class="cart-drawer" id="cartDrawer" aria-label="購物車">
+    <aside class="cart-drawer" id="cartDrawer" aria-label="Cart">
       <div class="cart-drawer-head">
-        <span class="sec-label">購物車</span>
-        <button type="button" class="lb-close cart-close" id="closeCartBtn" aria-label="關閉">✕</button>
+        <span class="sec-label">CART</span>
+        <button type="button" class="lb-close cart-close" id="closeCartBtn" aria-label="Close">✕</button>
       </div>
-      <p class="cart-hint">選好商品後，可 <strong>複製清單</strong> 貼到官方 LINE 群組詢價</p>
+      <p class="cart-hint">When ready, <strong>copy list</strong> and paste to LINE group for inquiry</p>
       <div class="cart-list" id="cartList"></div>
       <div class="cart-footer" id="cartFooter" hidden>
         <div class="cart-total">
-          <span>合計</span>
+          <span>TOTAL</span>
           <span id="cartTotal">NT$ 0</span>
         </div>
         <div class="cart-footer-actions">
-          <button type="button" class="tb-btn" id="clearCartBtn">清空</button>
-          <button type="button" class="tb-btn" id="copyCartBtn">複製清單</button>
+          <button type="button" class="tb-btn" id="clearCartBtn">CLEAR</button>
+          <button type="button" class="tb-btn" id="copyCartBtn">COPY LIST</button>
         </div>
       </div>
     </aside>
@@ -200,64 +201,64 @@
 
   <div class="modal-overlay" id="editModal">
     <div class="modal modal--edit">
-      <div class="sec-label">編輯商品</div>
+      <div class="sec-label">EDIT ITEM</div>
       <form id="editForm" enctype="multipart/form-data">
         <input type="hidden" id="editId" name="id">
         <div class="form-stack">
-          <label class="field-label" for="editName">名稱 <span class="req">*</span></label>
+          <label class="field-label" for="editName">NAME <span class="req">*</span></label>
           <input class="field-input" type="text" id="editName" name="name" required>
 
-          <label class="field-label" for="editPrice">價格 NT$ <span class="req">*</span></label>
+          <label class="field-label" for="editPrice">PRICE NT$ <span class="req">*</span></label>
           <input class="field-input" type="number" id="editPrice" name="price" min="0" step="1" required>
 
-          <label class="field-label" for="editSeries">系列</label>
+          <label class="field-label" for="editSeries">SERIES</label>
           <select class="sel" id="editSeries" name="series">
             <option value="nullcraft">nullcraft</option>
-            <option value="二手選品">二手選品</option>
-            <option value="礦石">礦石</option>
+            <option value="二手選品">PRE-LOVED</option>
+            <option value="礦石">MINERALS</option>
           </select>
 
-          <label class="field-label" for="editCategory">品項</label>
+          <label class="field-label" for="editCategory">CATEGORY</label>
           <select class="sel" id="editCategory" name="category"></select>
 
-          <label class="field-label" for="editStockType">屬性</label>
+          <label class="field-label" for="editStockType">TYPE</label>
           <select class="sel" id="editStockType" name="stock_type">
-            <option value="現貨">現貨</option>
-            <option value="AI製">AI製</option>
+            <option value="現貨">IN STOCK</option>
+            <option value="AI製">AI MADE</option>
           </select>
 
           <label class="field-check">
             <input type="checkbox" id="editSold" name="sold" value="1">
-            <span>標記為已售出 (SOLD)</span>
+            <span>MARK AS SOLD</span>
           </label>
 
-          <label class="field-label" for="editDescription">描述</label>
-          <textarea class="prompt-area" id="editDescription" name="description" rows="3" placeholder="商品特色、規格..."></textarea>
+          <label class="field-label" for="editDescription">DESCRIPTION</label>
+          <textarea class="prompt-area" id="editDescription" name="description" rows="3" placeholder="Details, specs..."></textarea>
 
-          <label class="field-label">圖片</label>
+          <label class="field-label">IMAGE</label>
           <div class="edit-current-img" id="editCurrentImgWrap" hidden>
-            <img id="editCurrentImg" alt="目前圖片">
-            <span class="hint">目前圖片（上傳新檔可替換）</span>
+            <img id="editCurrentImg" alt="Current image">
+            <span class="hint">Current image (upload to replace)</span>
           </div>
           <div class="img-upload" id="editDropZone">
             <input type="file" id="editImage" name="image" accept="image/jpeg,image/png,image/webp,image/gif" class="file-input-overlay">
             <div class="drop-content" id="editDropContent">
-              <span class="ul">點擊選擇新圖片</span>
-              <span class="hint">選填 · JPG / PNG / WebP · 5MB</span>
+              <span class="ul">CLICK TO SELECT NEW IMAGE</span>
+              <span class="hint">OPTIONAL · JPG / PNG / WebP · 5MB</span>
             </div>
             <div class="preview" id="editPreview" hidden>
-              <img id="editPreviewImg" alt="新圖片預覽">
-              <label class="replace-img-label" for="editImage">更換</label>
-              <button type="button" class="remove-btn" id="editRemoveImage" title="移除">✕</button>
+              <img id="editPreviewImg" alt="New image preview">
+              <label class="replace-img-label" for="editImage">REPLACE</label>
+              <button type="button" class="remove-btn" id="editRemoveImage" title="Remove">✕</button>
             </div>
           </div>
         </div>
         <div class="modal-actions modal-actions--edit">
-          <button type="button" class="tb-btn tb-btn-danger" id="editDeleteBtn">刪除商品</button>
-          <button type="button" class="tb-btn" id="cancelEdit">取消</button>
+          <button type="button" class="tb-btn tb-btn-danger" id="editDeleteBtn">DELETE</button>
+          <button type="button" class="tb-btn" id="cancelEdit">CANCEL</button>
           <button type="submit" class="gen-btn gen-btn-sm" id="editSubmitBtn">
-            <span class="btn-text">儲存</span>
-            <span class="btn-loading" hidden>儲存中...</span>
+            <span class="btn-text">SAVE</span>
+            <span class="btn-loading" hidden>SAVING...</span>
           </button>
         </div>
       </form>
@@ -266,21 +267,21 @@
 
   <div class="modal-overlay" id="passwordModal">
     <div class="modal">
-      <div class="sec-label">更改密碼</div>
-      <p class="modal-desc">變更 _null 管理員登入密碼</p>
+      <div class="sec-label">PASSWORD</div>
+      <p class="modal-desc">Change _null admin password</p>
       <form id="passwordForm">
-        <label class="field-label" for="currentPassword">目前密碼</label>
+        <label class="field-label" for="currentPassword">CURRENT</label>
         <input class="field-input" type="password" id="currentPassword" autocomplete="current-password" required>
 
-        <label class="field-label" for="newPassword">新密碼</label>
+        <label class="field-label" for="newPassword">NEW</label>
         <input class="field-input" type="password" id="newPassword" autocomplete="new-password" minlength="4" required>
 
-        <label class="field-label" for="confirmPassword">確認新密碼</label>
+        <label class="field-label" for="confirmPassword">CONFIRM</label>
         <input class="field-input" type="password" id="confirmPassword" autocomplete="new-password" minlength="4" required>
 
         <div class="modal-actions">
-          <button type="button" class="tb-btn" id="cancelPassword">取消</button>
-          <button type="submit" class="gen-btn gen-btn-sm">儲存</button>
+          <button type="button" class="tb-btn" id="cancelPassword">CANCEL</button>
+          <button type="submit" class="gen-btn gen-btn-sm">SAVE</button>
         </div>
       </form>
     </div>
@@ -289,7 +290,7 @@
   <div class="modal-overlay" id="loginModal">
     <div class="modal">
       <div class="sec-label">_null</div>
-      <p class="modal-desc">輸入密碼以管理商品</p>
+      <p class="modal-desc">Enter password to manage items</p>
       <form id="loginForm">
         <input class="field-input" type="password" id="adminPassword" placeholder="PASSWORD" autocomplete="current-password" required>
         <div class="modal-actions">
@@ -303,7 +304,7 @@
   <div class="modal-overlay" id="subuserLoginModal">
     <div class="modal">
       <div class="sec-label">ON AND ON</div>
-      <p class="modal-desc">副使用者登入 · 僅能編輯自己上傳的商品</p>
+      <p class="modal-desc">Sub-user login · Edit only your own uploads</p>
       <form id="subuserLoginForm">
         <input class="field-input" type="password" id="subuserPassword" placeholder="PASSWORD" autocomplete="current-password" required>
         <div class="modal-actions">

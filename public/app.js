@@ -18,6 +18,38 @@ const DEFAULT_CATEGORIES = [
   '服飾', '食品', '3C電子', '居家生活', '美妝保養', '其他',
 ];
 
+const SERIES_LABELS = {
+  nullcraft: 'nullcraft',
+  '二手選品': 'PRE-LOVED',
+  '礦石': 'MINERALS',
+};
+
+const CATEGORY_LABELS = {
+  '銀飾': 'SILVER',
+  '墜飾': 'PENDANT',
+  '耳環': 'EARRINGS',
+  '戒指': 'RING',
+  'AI畫作': 'AI ART',
+  '服飾': 'APPAREL',
+  '食品': 'FOOD',
+  '3C電子': 'TECH',
+  '居家生活': 'HOME',
+  '美妝保養': 'BEAUTY',
+  '其他': 'OTHER',
+};
+
+function labelSeries(series) {
+  return SERIES_LABELS[series] || series;
+}
+
+function labelCategory(category) {
+  return CATEGORY_LABELS[category] || category;
+}
+
+function labelStockType(stockType) {
+  return normalizeStockType(stockType) === 'AI製' ? 'AI MADE' : 'IN STOCK';
+}
+
 let activeSeriesFilter = 'all';
 let randomBrowseMode = false;
 let flipBrowseMode = false;
@@ -178,7 +210,7 @@ function addToCart(productId) {
   const product = allProducts.find(p => p.id === productId);
   if (!product) return;
   if (isProductSold(product)) {
-    showToast('此商品已售出', 'error');
+    showToast('This item is sold out', 'error');
     return;
   }
 
@@ -190,7 +222,7 @@ function addToCart(productId) {
     cart[index].qty += 1;
   }
   saveCart(cart);
-  showToast(`已加入購物車：${product.name}`);
+  showToast(`Added to cart: ${product.name}`);
 }
 
 function removeFromCart(productId) {
@@ -209,7 +241,7 @@ function changeCartQty(productId, delta) {
 
 function clearCart() {
   saveCart([]);
-  showToast('購物車已清空');
+  showToast('Cart cleared');
 }
 
 function recordView(productId) {
@@ -220,7 +252,7 @@ function recordView(productId) {
 
 function clearHistory() {
   saveHistory([]);
-  showToast('瀏覽紀錄已清除');
+  showToast('History cleared');
 }
 
 function openCartDrawer() {
@@ -238,7 +270,7 @@ function getCartSummaryText() {
   const cart = getCart();
   if (cart.length === 0) return '';
 
-  const lines = ['VOID.STORE 購物車清單'];
+  const lines = ['VOID.STORE CART'];
   let total = 0;
 
   cart.forEach(item => {
@@ -249,8 +281,8 @@ function getCartSummaryText() {
     lines.push(`- ${product.name} x${item.qty}  NT$ ${formatPrice(subtotal)}`);
   });
 
-  lines.push(`合計 NT$ ${formatPrice(total)}`);
-  lines.push('想確認庫存與運費，麻煩回覆，謝謝！');
+  lines.push(`TOTAL NT$ ${formatPrice(total)}`);
+  lines.push('Please confirm stock and shipping. Thank you!');
   return lines.join('\n');
 }
 
@@ -266,11 +298,11 @@ async function copyText(text) {
 
 function openLineGroup() {
   if (!lineGroupUrl) {
-    showToast('請先設定 LINE 群組連結', 'error');
+    showToast('LINE group link not configured', 'error');
     return;
   }
   window.open(lineGroupUrl, '_blank', 'noopener');
-  showToast('正在開啟 LINE 群組...');
+  showToast('Opening LINE group...');
 }
 
 function updateLineUi() {
@@ -281,7 +313,7 @@ function updateLineUi() {
 function renderCartDrawer() {
   const cart = getCart();
   if (cart.length === 0) {
-    cartList.innerHTML = '<p class="cart-empty">購物車是空的</p>';
+    cartList.innerHTML = '<p class="cart-empty">Cart is empty</p>';
     cartFooter.hidden = true;
     return;
   }
@@ -297,7 +329,7 @@ function renderCartDrawer() {
       <article class="cart-item" data-id="${product.id}">
         <div class="cart-item-main">
           <div class="cart-item-name">${escapeHtml(product.name)}</div>
-          <div class="cart-item-meta">NT$ ${formatPrice(product.price)} · ${escapeHtml(product.category)}</div>
+          <div class="cart-item-meta">NT$ ${formatPrice(product.price)} · ${escapeHtml(labelCategory(product.category))}</div>
         </div>
         <div class="cart-item-controls">
           <button type="button" class="qty-btn" data-action="dec" data-id="${product.id}">−</button>
@@ -454,7 +486,7 @@ passwordForm.addEventListener('submit', async e => {
   e.preventDefault();
 
   if (newPassword.value !== confirmPassword.value) {
-    showToast('兩次輸入的新密碼不一致', 'error');
+    showToast('New passwords do not match', 'error');
     return;
   }
 
@@ -469,11 +501,11 @@ passwordForm.addEventListener('submit', async e => {
       ...fetchOpts,
     });
     const data = await res.json();
-    if (!res.ok) throw new Error(data.error || '密碼變更失敗');
+    if (!res.ok) throw new Error(data.error || 'Password change failed');
 
     closePasswordModal();
     setUserMode(null);
-    showToast('密碼已更新，請用新密碼重新登入');
+    showToast('Password updated. Please log in again.');
     openLoginModal();
   } catch (err) {
     showToast(err.message, 'error');
@@ -495,8 +527,8 @@ clearHistoryBtn.addEventListener('click', clearHistory);
 copyCartBtn.addEventListener('click', async () => {
   const text = getCartSummaryText();
   if (!text) return;
-  if (await copyText(text)) showToast('購物車清單已複製');
-  else showToast('複製失敗', 'error');
+  if (await copyText(text)) showToast('Cart list copied');
+  else showToast('Copy failed', 'error');
 });
 
 lineGroupBtn.addEventListener('click', openLineGroup);
@@ -508,7 +540,7 @@ eventSlotBtn?.addEventListener('click', e => {
 adminLogoutBtn.addEventListener('click', async () => {
   await fetch('/api/admin/logout', { method: 'POST', ...fetchOpts });
   setUserMode(null);
-  showToast('已登出');
+  showToast('Logged out');
   loadProducts();
 });
 
@@ -522,13 +554,13 @@ loginForm.addEventListener('submit', async e => {
       ...fetchOpts,
     });
     const data = await res.json();
-    if (!res.ok) throw new Error(data.error || '登入失敗');
+    if (!res.ok) throw new Error(data.error || 'Login failed');
 
     closeLoginModal();
     setUserMode('admin');
-    showToast('登入成功');
+    showToast('Logged in');
     if (!persistentStorage) {
-      showToast('雲端尚未設定 Supabase，商品可能在重新部署後消失', 'error');
+      showToast('Supabase not configured. Items may be lost after redeploy.', 'error');
     }
     loadProducts();
   } catch (err) {
@@ -546,13 +578,13 @@ subuserLoginForm?.addEventListener('submit', async e => {
       ...fetchOpts,
     });
     const data = await res.json();
-    if (!res.ok) throw new Error(data.error || '登入失敗');
+    if (!res.ok) throw new Error(data.error || 'Login failed');
 
     closeSubuserLoginModal();
     setUserMode('onandon');
-    showToast('ON AND ON 登入成功');
+    showToast('ON AND ON logged in');
     if (!persistentStorage) {
-      showToast('雲端尚未設定 Supabase，商品可能在重新部署後消失', 'error');
+      showToast('Supabase not configured. Items may be lost after redeploy.', 'error');
     }
     loadProducts();
   } catch (err) {
@@ -653,14 +685,14 @@ editForm.addEventListener('submit', async e => {
       ...fetchOpts,
     });
     const data = await res.json();
-    if (!res.ok) throw new Error(data.error || '更新失敗');
+    if (!res.ok) throw new Error(data.error || 'Update failed');
 
     if (data.sold) removeFromCart(editingProductId);
     closeEditModal();
-    showToast('商品已更新');
+    showToast('Item updated');
     loadProducts();
   } catch (err) {
-    showToast(err.message || '更新失敗', 'error');
+    showToast(err.message || 'Update failed', 'error');
   } finally {
     editSubmitBtn.disabled = false;
     btnText.hidden = false;
@@ -699,13 +731,13 @@ function setUserMode(role) {
   if (categoryAddRow) categoryAddRow.hidden = !isAdmin;
 
   if (isAdmin) {
-    subtitle.textContent = '管理員模式';
+    subtitle.textContent = 'Admin mode';
     modeLabel.textContent = 'ADMIN';
   } else if (isSubUser) {
-    subtitle.textContent = 'ON AND ON 模式';
+    subtitle.textContent = 'ON AND ON mode';
     modeLabel.textContent = 'ONANDON';
   } else {
-    subtitle.textContent = '瀏覽精選商品';
+    subtitle.textContent = 'Browse curated items';
     modeLabel.textContent = 'VIEWER';
   }
   modeLabel.classList.toggle('ok', isEditor);
@@ -723,7 +755,7 @@ function populateCategorySelects(preferredValue) {
   selects.forEach(select => {
     const previous = select.value;
     select.innerHTML = allCategories.map(cat => (
-      `<option value="${escapeHtml(cat)}">${escapeHtml(cat)}</option>`
+      `<option value="${escapeHtml(cat)}">${escapeHtml(labelCategory(cat))}</option>`
     )).join('');
 
     const next = [preferredValue, previous, fallback].find(
@@ -736,7 +768,7 @@ function populateCategorySelects(preferredValue) {
 async function addCustomCategory() {
   const name = categoryNew?.value.trim();
   if (!name) {
-    showToast('請輸入品項名稱', 'error');
+    showToast('Enter a category name', 'error');
     return;
   }
 
@@ -748,12 +780,12 @@ async function addCustomCategory() {
       ...fetchOpts,
     });
     const data = await res.json();
-    if (!res.ok) throw new Error(data.error || '新增失敗');
+    if (!res.ok) throw new Error(data.error || 'Failed to add');
 
     allCategories = data.categories || allCategories;
     populateCategorySelects(name);
     if (categoryNew) categoryNew.value = '';
-    showToast(`已新增品項：${name}`);
+    showToast(`Category added: ${labelCategory(name)}`);
   } catch (err) {
     showToast(err.message, 'error');
   }
@@ -808,12 +840,12 @@ function updateFlipBrowseBtn() {
 function updateGalleryHint() {
   if (!physicsHint) return;
   if (flipBrowseMode) {
-    physicsHint.textContent = '翻牌模式 · 點選卡片翻開作品 · 點空白處蓋回';
+    physicsHint.textContent = 'Flip mode · Tap card to reveal · Tap outside to flip back';
     return;
   }
   physicsHint.textContent = randomBrowseMode
-    ? '隨機排列瀏覽 · 點選商品開啟詳情'
-    : '拖曳卡片可碰撞 · 輕點開啟商品';
+    ? 'Random layout · Tap item to view details'
+    : 'Drag cards to collide · Tap to open item';
 }
 
 function toggleRandomBrowse() {
@@ -1024,7 +1056,7 @@ async function toggleProductSold(id) {
       ...fetchOpts,
     });
     const data = await res.json().catch(() => ({}));
-    if (!res.ok) throw new Error(data.error || '更新失敗');
+    if (!res.ok) throw new Error(data.error || 'Update failed');
 
     const index = allProducts.findIndex(p => p.id === id);
     if (index !== -1) allProducts[index] = data;
@@ -1035,7 +1067,7 @@ async function toggleProductSold(id) {
     renderCartDrawer();
 
     if (currentLightboxId === id) updateLightboxSoldUI(data);
-    showToast(nextSold ? '已標記 SOLD' : '已恢復上架');
+    showToast(nextSold ? 'Marked SOLD' : 'Restocked');
   } catch (err) {
     showToast(err.message, 'error');
   }
@@ -1109,13 +1141,13 @@ function stockTypeBadgeClass(stockType) {
 
 function renderStockTypeBadge(stockType) {
   const type = normalizeStockType(stockType);
-  return `<span class="${stockTypeBadgeClass(type)}">${escapeHtml(type)}</span>`;
+  return `<span class="${stockTypeBadgeClass(type)}">${escapeHtml(labelStockType(type))}</span>`;
 }
 
 function applyStockTypeBadge(el, stockType) {
   if (!el) return;
   const type = normalizeStockType(stockType);
-  el.textContent = type;
+  el.textContent = labelStockType(type);
   el.className = stockTypeBadgeClass(type);
   el.hidden = false;
 }
@@ -1139,7 +1171,7 @@ function getProductLink(id) {
 async function shareProduct(id) {
   const link = getProductLink(id);
   if (!link) {
-    showToast('請先執行 start-public.ps1 啟動公開分享', 'error');
+    showToast('Run start-public.ps1 to enable public sharing', 'error');
     return;
   }
   try {
@@ -1155,9 +1187,9 @@ async function shareProduct(id) {
       document.execCommand('copy');
       document.body.removeChild(ta);
     }
-    showToast('連結已複製');
+    showToast('Link copied');
   } catch {
-    showToast('複製失敗', 'error');
+    showToast('Copy failed', 'error');
   }
 }
 
@@ -1181,9 +1213,9 @@ async function loadSiteConfig() {
       publicUrlLabel.onclick = async () => {
         try {
           await navigator.clipboard.writeText(publicBaseUrl);
-          showToast('公開網址已複製');
+          showToast('Public URL copied');
         } catch {
-          showToast('複製失敗', 'error');
+          showToast('Copy failed', 'error');
         }
       };
     } else {
@@ -1199,10 +1231,10 @@ function populateLightbox(product) {
   history.replaceState(null, '', `#product-${product.id}`);
   recordView(product.id);
 
-  lightboxCategory.textContent = `${product.series || 'nullcraft'} · ${product.category}`;
+  lightboxCategory.textContent = `${labelSeries(product.series || 'nullcraft')} · ${labelCategory(product.category)}`;
   applyStockTypeBadge(lightboxStockType, product.stock_type);
   lightboxName.textContent = product.name;
-  lightboxDesc.textContent = product.description || '暫無商品描述';
+  lightboxDesc.textContent = product.description || 'No description';
   lightboxPrice.textContent = formatPrice(product.price);
 
   if (product.image) {
@@ -1335,7 +1367,7 @@ function updateFilterTags() {
   filterTags.querySelectorAll('.filter-tag').forEach(btn => {
     const series = btn.dataset.series;
     const count = countSeriesItems(series);
-    const label = series === 'all' ? 'ALL' : series;
+    const label = series === 'all' ? 'ALL' : labelSeries(series);
 
     btn.classList.toggle('active', series === activeSeriesFilter);
     btn.innerHTML = `
@@ -1369,7 +1401,7 @@ function renderGallery() {
     productsGrid.innerHTML = `
       <div class="empty-state" id="emptyState">
         <span class="empty-icon">◌</span>
-        <span class="empty-text">尚無商品</span>
+        <span class="empty-text">NO ITEMS YET</span>
       </div>`;
     return;
   }
@@ -1378,7 +1410,7 @@ function renderGallery() {
     productsGrid.innerHTML = `
       <div class="empty-state" id="emptyState">
         <span class="empty-icon">◌</span>
-        <span class="empty-text">此系列尚無作品</span>
+        <span class="empty-text">NO ITEMS IN THIS SERIES</span>
       </div>`;
     return;
   }
@@ -1440,8 +1472,8 @@ function renderProduct(product) {
             <div class="card-overlay">
               <div class="card-meta-wrap">
                 <div class="card-badges">
-                  <span class="card-badge card-badge-series">${escapeHtml(product.series || 'nullcraft')}</span>
-                  <span class="card-badge">${escapeHtml(product.category)}</span>
+                  <span class="card-badge card-badge-series">${escapeHtml(labelSeries(product.series || 'nullcraft'))}</span>
+                  <span class="card-badge">${escapeHtml(labelCategory(product.category))}</span>
                 </div>
                 <div class="card-title">${escapeHtml(product.name)}</div>
                 ${product.description ? `<div class="card-desc">${escapeHtml(product.description)}</div>` : ''}
@@ -1547,22 +1579,22 @@ async function loadProducts() {
     renderRecentSection();
     renderCartDrawer();
   } catch {
-    showToast('載入商品失敗', 'error');
+    showToast('Failed to load items', 'error');
   }
 }
 
 async function deleteProduct(id) {
-  if (!confirm('確定要刪除此商品嗎？')) return;
+  if (!confirm('Delete this item?')) return;
 
   try {
     const res = await fetch(`/api/products/${id}`, { method: 'DELETE', ...fetchOpts });
     const data = await res.json().catch(() => ({}));
-    if (!res.ok) throw new Error(data.error || '刪除失敗');
+    if (!res.ok) throw new Error(data.error || 'Delete failed');
     if (editingProductId === Number(id)) closeEditModal();
     if (currentLightboxId === Number(id)) closeImageLightbox();
     removeFromCart(Number(id));
     saveHistory(getHistory().filter(itemId => itemId !== Number(id)));
-    showToast('商品已刪除');
+    showToast('Item deleted');
     loadProducts();
   } catch (err) {
     showToast(err.message, 'error');
@@ -1585,9 +1617,9 @@ form.addEventListener('submit', async e => {
     const res = await fetch('/api/products', { method: 'POST', body: formData, ...fetchOpts });
     const data = await res.json();
 
-    if (!res.ok) throw new Error(data.error || '上傳失敗');
+    if (!res.ok) throw new Error(data.error || 'Upload failed');
 
-    showToast('商品上架成功');
+    showToast('Item uploaded');
     form.reset();
     imageInput.value = '';
     preview.hidden = true;
@@ -1595,7 +1627,7 @@ form.addEventListener('submit', async e => {
     toggleFileInputOverlay(imageInput, true);
     loadProducts();
   } catch (err) {
-    showToast(err.message || '上傳失敗', 'error');
+    showToast(err.message || 'Upload failed', 'error');
   } finally {
     submitBtn.disabled = false;
     btnText.hidden = false;
