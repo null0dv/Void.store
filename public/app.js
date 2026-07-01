@@ -1353,11 +1353,17 @@ function closeImageLightbox() {
 
 function getFilteredProducts() {
   if (activeSeriesFilter === 'all') return allProducts;
+  if (activeSeriesFilter === 'onandon') {
+    return allProducts.filter(product => product.uploaded_by === 'onandon');
+  }
   return allProducts.filter(product => (product.series || 'nullcraft') === activeSeriesFilter);
 }
 
 function countSeriesItems(series) {
   if (series === 'all') return allProducts.length;
+  if (series === 'onandon') {
+    return allProducts.filter(product => product.uploaded_by === 'onandon').length;
+  }
   return allProducts.filter(product => (product.series || 'nullcraft') === series).length;
 }
 
@@ -1367,7 +1373,7 @@ function updateFilterTags() {
   filterTags.querySelectorAll('.filter-tag').forEach(btn => {
     const series = btn.dataset.series;
     const count = countSeriesItems(series);
-    const label = series === 'all' ? 'ALL' : labelSeries(series);
+    const label = series === 'all' ? 'ALL' : series === 'onandon' ? 'ONANDON' : labelSeries(series);
 
     btn.classList.toggle('active', series === activeSeriesFilter);
     btn.innerHTML = `
