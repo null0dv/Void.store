@@ -9,6 +9,22 @@ let lineGroupUrl = null;
 const CART_KEY = 'void-store-cart';
 const HISTORY_KEY = 'void-store-history';
 const MAX_HISTORY = 12;
+const GALLERY_SERIES = ['nullcraft', '二手選品', '礦石'];
+const DEFAULT_CATEGORIES = [
+  '銀飾', '墜飾', '耳環', '戒指', 'AI畫作',
+  '服飾', '食品', '3C電子', '居家生活', '美妝保養', '其他',
+];
+
+let activeSeriesFilter = 'all';
+let randomBrowseMode = false;
+let flipBrowseMode = false;
+let flipRevealInProgress = false;
+let flipGridClickHandler = null;
+let flipOutsideClickHandler = null;
+
+const FLIP_REVEAL_MS = 620;
+const LIGHTBOX_EXPAND_MS = 560;
+let allCategories = [...DEFAULT_CATEGORIES];
 
 const form = document.getElementById('uploadForm');
 const imageInput = document.getElementById('image');
@@ -51,11 +67,14 @@ const adminPassword = document.getElementById('adminPassword');
 const cancelLogin = document.getElementById('cancelLogin');
 const subtitle = document.getElementById('subtitle');
 const imageLightbox = document.getElementById('imageLightbox');
+const lightboxImageWrap = document.getElementById('lightboxImageWrap');
 const closeLightboxBtn = document.getElementById('closeLightbox');
 const lightboxImage = document.getElementById('lightboxImage');
 const lightboxPlaceholder = document.getElementById('lightboxPlaceholder');
 const lightboxCategory = document.getElementById('lightboxCategory');
 const lightboxStockType = document.getElementById('lightboxStockType');
+const lightboxSoldBadge = document.getElementById('lightboxSoldBadge');
+const lightboxSoldBtn = document.getElementById('lightboxSoldBtn');
 const lightboxName = document.getElementById('lightboxName');
 const lightboxDesc = document.getElementById('lightboxDesc');
 const lightboxPrice = document.getElementById('lightboxPrice');
@@ -71,7 +90,9 @@ const editId = document.getElementById('editId');
 const editName = document.getElementById('editName');
 const editPrice = document.getElementById('editPrice');
 const editCategory = document.getElementById('editCategory');
+const editSeries = document.getElementById('editSeries');
 const editStockType = document.getElementById('editStockType');
+const editSold = document.getElementById('editSold');
 const editDescription = document.getElementById('editDescription');
 const editImageInput = document.getElementById('editImage');
 const editDropZone = document.getElementById('editDropZone');
@@ -86,8 +107,16 @@ const cancelEdit = document.getElementById('cancelEdit');
 const editSubmitBtn = document.getElementById('editSubmitBtn');
 const publicUrlLabel = document.getElementById('publicUrlLabel');
 const lineGroupBtn = document.getElementById('lineGroupBtn');
-const lineCtaBanner = document.getElementById('lineCtaBanner');
-const lineGroupBannerBtn = document.getElementById('lineGroupBannerBtn');
+const eventSlotBtn = document.getElementById('eventSlotBtn');
+const filterTags = document.getElementById('filterTags');
+const randomBrowseBtn = document.getElementById('randomBrowseBtn');
+const randomBrowseIndicator = document.getElementById('randomBrowseIndicator');
+const flipBrowseBtn = document.getElementById('flipBrowseBtn');
+const physicsHint = document.querySelector('.physics-hint');
+const categorySelect = document.getElementById('category');
+const categoryAddRow = document.getElementById('categoryAddRow');
+const categoryNew = document.getElementById('categoryNew');
+const addCategoryBtn = document.getElementById('addCategoryBtn');
 
 const fetchOpts = { credentials: 'include', cache: 'no-store' };
 
@@ -133,9 +162,17 @@ function updateCartBadge() {
   cartBadge.hidden = count === 0;
 }
 
+function isProductSold(product) {
+  return Boolean(product?.sold);
+}
+
 function addToCart(productId) {
   const product = allProducts.find(p => p.id === productId);
   if (!product) return;
+  if (isProductSold(product)) {
+    showToast('此商品已售出', 'error');
+    return;
+  }
 
   const cart = getCart();
   const index = cart.findIndex(item => item.id === productId);
@@ -230,11 +267,7 @@ function openLineGroup() {
 
 function updateLineUi() {
   const hasGroup = Boolean(lineGroupUrl);
-  const showGuestLine = !isAdmin && hasGroup;
-
   lineGroupBtn.hidden = !hasGroup;
-  lineCtaBanner.hidden = !showGuestLine;
-  lineGroupBannerBtn.hidden = !hasGroup;
 }
 
 function renderCartDrawer() {
@@ -435,7 +468,10 @@ copyCartBtn.addEventListener('click', async () => {
 });
 
 lineGroupBtn.addEventListener('click', openLineGroup);
-lineGroupBannerBtn.addEventListener('click', openLineGroup);
+
+eventSlotBtn?.addEventListener('click', e => {
+  e.preventDefault();
+});
 
 adminLogoutBtn.addEventListener('click', async () => {
   await fetch('/api/admin/logout', { method: 'POST', ...fetchOpts });
@@ -488,6 +524,10 @@ lightboxEditBtn.addEventListener('click', () => {
 
 lightboxDeleteBtn.addEventListener('click', () => {
   if (currentLightboxId) deleteProduct(currentLightboxId);
+});
+
+lightboxSoldBtn?.addEventListener('click', () => {
+  if (currentLightboxId) toggleProductSold(currentLightboxId);
 });
 
 editImageInput.addEventListener('change', () => {
@@ -548,6 +588,7 @@ editForm.addEventListener('submit', async e => {
   btnLoading.hidden = false;
 
   const formData = new FormData(editForm);
+  formData.set('sold', editSold?.checked ? '1' : '0');
 
   try {
     const res = await fetch(`/api/products/${editingProductId}`, {
@@ -558,6 +599,7 @@ editForm.addEventListener('submit', async e => {
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || '更新失敗');
 
+    if (data.sold) removeFromCart(editingProductId);
     closeEditModal();
     showToast('商品已更新');
     loadProducts();
@@ -593,12 +635,258 @@ function setAdminMode(admin) {
   loginBtn.hidden = admin;
   changePasswordBtn.hidden = !admin;
   adminLogoutBtn.hidden = !admin;
+  if (categoryAddRow) categoryAddRow.hidden = !admin;
   subtitle.textContent = admin ? '管理員模式' : '瀏覽精選商品';
   modeLabel.textContent = admin ? 'ADMIN' : 'VIEWER';
   modeLabel.classList.toggle('ok', admin);
   updateLineUi();
   updateLightboxActions();
   if (!admin) closeEditModal();
+  renderGallery();
+}
+
+function populateCategorySelects(preferredValue) {
+  const selects = [categorySelect, editCategory].filter(Boolean);
+  const fallback = preferredValue || '其他';
+
+  selects.forEach(select => {
+    const previous = select.value;
+    select.innerHTML = allCategories.map(cat => (
+      `<option value="${escapeHtml(cat)}">${escapeHtml(cat)}</option>`
+    )).join('');
+
+    const next = [preferredValue, previous, fallback].find(
+      value => value && allCategories.includes(value),
+    );
+    select.value = next || allCategories[allCategories.length - 1];
+  });
+}
+
+async function addCustomCategory() {
+  const name = categoryNew?.value.trim();
+  if (!name) {
+    showToast('請輸入品項名稱', 'error');
+    return;
+  }
+
+  try {
+    const res = await fetch('/api/admin/categories', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name }),
+      ...fetchOpts,
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || '新增失敗');
+
+    allCategories = data.categories || allCategories;
+    populateCategorySelects(name);
+    if (categoryNew) categoryNew.value = '';
+    showToast(`已新增品項：${name}`);
+  } catch (err) {
+    showToast(err.message, 'error');
+  }
+}
+
+function shuffleProducts(products) {
+  const list = [...products];
+  for (let i = list.length - 1; i > 0; i -= 1) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [list[i], list[j]] = [list[j], list[i]];
+  }
+  return list;
+}
+
+function getDisplayProducts(filtered) {
+  return shuffleProducts(filtered);
+}
+
+function applyMasonryStagger() {
+  productsGrid.classList.add('gallery-grid--shuffle');
+  productsGrid.querySelectorAll('.product-card').forEach((card, index) => {
+    const offset = (index * 19 + Number(card.dataset.id) * 11) % 32;
+    card.style.setProperty('--rand-offset', `${offset}px`);
+  });
+}
+
+function resetGalleryCardLayout() {
+  productsGrid.querySelectorAll('.product-card').forEach(card => {
+    card.style.transform = '';
+    card.style.width = '';
+    card.style.margin = '';
+    card.style.removeProperty('--rand-offset');
+  });
+  productsGrid.style.minHeight = '';
+}
+
+function updateRandomBrowseBtn() {
+  if (!randomBrowseBtn) return;
+  randomBrowseBtn.classList.toggle('active', randomBrowseMode);
+  randomBrowseBtn.setAttribute('aria-pressed', String(randomBrowseMode));
+  if (randomBrowseIndicator) {
+    randomBrowseIndicator.textContent = randomBrowseMode ? 'ON' : 'OFF';
+  }
+}
+
+function updateFlipBrowseBtn() {
+  if (!flipBrowseBtn) return;
+  flipBrowseBtn.classList.toggle('active', flipBrowseMode);
+  flipBrowseBtn.setAttribute('aria-pressed', String(flipBrowseMode));
+}
+
+function updateGalleryHint() {
+  if (!physicsHint) return;
+  if (flipBrowseMode) {
+    physicsHint.textContent = '翻牌模式 · 點選卡片翻開作品 · 點空白處蓋回';
+    return;
+  }
+  physicsHint.textContent = randomBrowseMode
+    ? '隨機排列瀏覽 · 點選商品開啟詳情'
+    : '拖曳卡片可碰撞 · 輕點開啟商品';
+}
+
+function toggleRandomBrowse() {
+  randomBrowseMode = !randomBrowseMode;
+  if (randomBrowseMode) flipBrowseMode = false;
+  renderGallery();
+}
+
+function toggleFlipBrowse() {
+  flipBrowseMode = !flipBrowseMode;
+  if (flipBrowseMode) randomBrowseMode = false;
+  renderGallery();
+}
+
+function flipAllCardsDown() {
+  productsGrid.querySelectorAll('.product-card').forEach(card => {
+    card.classList.add('card--face-down');
+  });
+}
+
+function revealFlipCard(card) {
+  const wasFaceDown = card.classList.contains('card--face-down');
+  productsGrid.querySelectorAll('.product-card').forEach(item => {
+    item.classList.add('card--face-down');
+  });
+  card.classList.remove('card--face-down');
+  return wasFaceDown;
+}
+
+function waitForFlipReveal(card) {
+  return new Promise(resolve => {
+    const inner = card.querySelector('.card-flip-inner');
+    if (!inner) {
+      resolve();
+      return;
+    }
+
+    let settled = false;
+    const done = () => {
+      if (settled) return;
+      settled = true;
+      inner.removeEventListener('transitionend', onEnd);
+      clearTimeout(timer);
+      resolve();
+    };
+
+    const onEnd = e => {
+      if (e.target === inner && e.propertyName === 'transform') done();
+    };
+
+    const timer = setTimeout(done, FLIP_REVEAL_MS + 50);
+    inner.addEventListener('transitionend', onEnd);
+  });
+}
+
+async function openFlipProduct(card, product) {
+  flipRevealInProgress = true;
+  try {
+    const needsFlip = revealFlipCard(card);
+    if (needsFlip) await waitForFlipReveal(card);
+    await openImageLightbox(product, { fromCard: card });
+  } finally {
+    flipRevealInProgress = false;
+  }
+}
+
+function teardownFlipModeEvents() {
+  if (flipGridClickHandler) {
+    productsGrid.removeEventListener('click', flipGridClickHandler);
+    flipGridClickHandler = null;
+  }
+  if (flipOutsideClickHandler) {
+    document.removeEventListener('click', flipOutsideClickHandler, true);
+    flipOutsideClickHandler = null;
+  }
+}
+
+function bindFlipModeEvents() {
+  teardownFlipModeEvents();
+
+  flipGridClickHandler = e => {
+    const card = e.target.closest('.product-card');
+    if (!card) {
+      flipAllCardsDown();
+      return;
+    }
+    if (e.target.closest('[data-action]')) return;
+
+    const id = Number(card.dataset.id);
+    const product = allProducts.find(p => p.id === id);
+    if (!product || flipRevealInProgress) return;
+
+    void openFlipProduct(card, product);
+  };
+
+  flipOutsideClickHandler = e => {
+    if (!flipBrowseMode) return;
+    if (e.target.closest('#productsGrid')) return;
+    if (e.target.closest('#flipBrowseBtn')) return;
+    flipAllCardsDown();
+  };
+
+  productsGrid.addEventListener('click', flipGridClickHandler);
+  document.addEventListener('click', flipOutsideClickHandler, true);
+}
+
+function initFlipMode() {
+  productsGrid.querySelectorAll('.product-card').forEach(card => {
+    card.classList.remove('card--face-down');
+  });
+  requestAnimationFrame(() => {
+    requestAnimationFrame(() => {
+      productsGrid.querySelectorAll('.product-card').forEach(card => {
+        card.classList.add('card--face-down');
+      });
+    });
+  });
+  bindFlipModeEvents();
+}
+
+function initGalleryLayout() {
+  resetGalleryCardLayout();
+  teardownFlipModeEvents();
+  updateRandomBrowseBtn();
+  updateFlipBrowseBtn();
+  updateGalleryHint();
+
+  if (flipBrowseMode) {
+    productsGrid.classList.remove('gallery-grid--physics');
+    productsGrid.classList.add('gallery-grid--shuffle', 'gallery-grid--flip');
+    applyMasonryStagger();
+    initFlipMode();
+    return;
+  }
+
+  if (randomBrowseMode) {
+    productsGrid.classList.remove('gallery-grid--physics', 'gallery-grid--flip');
+    productsGrid.classList.add('gallery-grid--shuffle');
+    applyMasonryStagger();
+    return;
+  }
+
+  productsGrid.classList.remove('gallery-grid--shuffle', 'gallery-grid--flip');
+  initGalleryPhysics();
 }
 
 function showPreview(file) {
@@ -635,6 +923,48 @@ function updateLightboxActions() {
   if (lightboxAdminActions) lightboxAdminActions.hidden = !isAdmin;
 }
 
+function updateLightboxSoldUI(product) {
+  const sold = isProductSold(product);
+
+  if (lightboxSoldBadge) lightboxSoldBadge.hidden = !sold;
+  if (lightboxSoldBtn) lightboxSoldBtn.textContent = sold ? 'RESTOCK' : 'SOLD';
+  if (lightboxCartBtn) lightboxCartBtn.hidden = !isAdmin && sold;
+  if (lightboxPrice) {
+    lightboxPrice.classList.toggle('lb-price--sold', sold && !isAdmin);
+  }
+}
+
+async function toggleProductSold(id) {
+  const product = allProducts.find(p => p.id === id);
+  if (!product || !isAdmin) return;
+
+  const nextSold = !isProductSold(product);
+
+  try {
+    const res = await fetch(`/api/products/${id}/sold`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ sold: nextSold }),
+      ...fetchOpts,
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data.error || '更新失敗');
+
+    const index = allProducts.findIndex(p => p.id === id);
+    if (index !== -1) allProducts[index] = data;
+
+    if (nextSold) removeFromCart(id);
+    renderGallery();
+    renderRecentSection();
+    renderCartDrawer();
+
+    if (currentLightboxId === id) updateLightboxSoldUI(data);
+    showToast(nextSold ? '已標記 SOLD' : '已恢復上架');
+  } catch (err) {
+    showToast(err.message, 'error');
+  }
+}
+
 function openEditModal(product) {
   if (!isAdmin || !product) return;
 
@@ -642,8 +972,10 @@ function openEditModal(product) {
   editId.value = String(product.id);
   editName.value = product.name;
   editPrice.value = String(Math.round(product.price));
-  editCategory.value = product.category || '其他';
+  populateCategorySelects(product.category || '其他');
+  editSeries.value = product.series || 'nullcraft';
   editStockType.value = normalizeStockType(product.stock_type);
+  if (editSold) editSold.checked = isProductSold(product);
   editDescription.value = product.description || '';
   resetEditImagePreview();
 
@@ -760,6 +1092,10 @@ async function loadSiteConfig() {
     publicBaseUrl = data.publicUrl || null;
     persistentStorage = data.persistentStorage !== false;
     lineGroupUrl = data.lineGroupUrl || null;
+    if (Array.isArray(data.categories) && data.categories.length > 0) {
+      allCategories = data.categories;
+    }
+    populateCategorySelects();
     updateLineUi();
 
     if (publicBaseUrl) {
@@ -782,12 +1118,12 @@ async function loadSiteConfig() {
   }
 }
 
-function openImageLightbox(product) {
+function populateLightbox(product) {
   currentLightboxId = product.id;
   history.replaceState(null, '', `#product-${product.id}`);
   recordView(product.id);
 
-  lightboxCategory.textContent = product.category;
+  lightboxCategory.textContent = `${product.series || 'nullcraft'} · ${product.category}`;
   applyStockTypeBadge(lightboxStockType, product.stock_type);
   lightboxName.textContent = product.name;
   lightboxDesc.textContent = product.description || '暫無商品描述';
@@ -804,30 +1140,206 @@ function openImageLightbox(product) {
   }
 
   updateLightboxActions();
+  updateLightboxSoldUI(product);
+}
+
+function waitForElementTransition(el, property, durationMs) {
+  return new Promise(resolve => {
+    let settled = false;
+    const done = () => {
+      if (settled) return;
+      settled = true;
+      el.removeEventListener('transitionend', onEnd);
+      clearTimeout(timer);
+      resolve();
+    };
+    const onEnd = e => {
+      if (e.target === el && e.propertyName === property) done();
+    };
+    const timer = setTimeout(done, durationMs + 60);
+    el.addEventListener('transitionend', onEnd);
+  });
+}
+
+async function animateLightboxFromCard(card, product) {
+  const sourceEl = card.querySelector('.card-face--front img')
+    || card.querySelector('.card-img-wrap img')
+    || card.querySelector('.card-face--front');
+
+  if (!sourceEl || !product.image || !lightboxImageWrap) {
+    imageLightbox.classList.remove('is-expanding', 'is-expanding-visible', 'is-expanded');
+    imageLightbox.classList.add('is-open');
+    document.body.style.overflow = 'hidden';
+    return;
+  }
+
+  const sourceRect = sourceEl.getBoundingClientRect();
+  imageLightbox.classList.add('is-open', 'is-expanding');
+  document.body.style.overflow = 'hidden';
+
+  await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+
+  const targetRect = lightboxImageWrap.getBoundingClientRect();
+  const startScale = Math.min(
+    sourceRect.width / Math.max(targetRect.width, 1),
+    sourceRect.height / Math.max(targetRect.height, 1),
+  );
+  const sourceCenterX = sourceRect.left + sourceRect.width / 2;
+  const sourceCenterY = sourceRect.top + sourceRect.height / 2;
+  const targetCenterX = targetRect.left + targetRect.width / 2;
+  const targetCenterY = targetRect.top + targetRect.height / 2;
+
+  const flyer = document.createElement('div');
+  flyer.className = 'lb-expand-flyer';
+  const flyImg = document.createElement('img');
+  flyImg.src = product.image;
+  flyImg.alt = product.name;
+  flyer.appendChild(flyImg);
+  document.body.appendChild(flyer);
+
+  flyer.style.left = `${targetRect.left}px`;
+  flyer.style.top = `${targetRect.top}px`;
+  flyer.style.width = `${targetRect.width}px`;
+  flyer.style.height = `${targetRect.height}px`;
+  flyer.style.transform = `translate(${sourceCenterX - targetCenterX}px, ${sourceCenterY - targetCenterY}px) scale(${startScale})`;
+
+  requestAnimationFrame(() => {
+    requestAnimationFrame(() => {
+      imageLightbox.classList.add('is-expanding-visible');
+      flyer.style.transform = 'translate(0, 0) scale(1)';
+    });
+  });
+
+  await waitForElementTransition(flyer, 'transform', LIGHTBOX_EXPAND_MS);
+  flyer.remove();
+  imageLightbox.classList.remove('is-expanding', 'is-expanding-visible');
+  imageLightbox.classList.add('is-expanded');
+  requestAnimationFrame(() => {
+    imageLightbox.classList.remove('is-expanded');
+  });
+}
+
+async function openImageLightbox(product, options = {}) {
+  populateLightbox(product);
+
+  if (options.fromCard && product.image) {
+    await animateLightboxFromCard(options.fromCard, product);
+    return;
+  }
+
+  imageLightbox.classList.remove('is-expanding', 'is-expanding-visible', 'is-expanded');
   imageLightbox.classList.add('is-open');
   document.body.style.overflow = 'hidden';
 }
 
 function closeImageLightbox() {
-  imageLightbox.classList.remove('is-open');
+  document.querySelector('.lb-expand-flyer')?.remove();
+  imageLightbox.classList.remove('is-open', 'is-expanding', 'is-expanding-visible', 'is-expanded');
   document.body.style.overflow = cartDrawerBg.classList.contains('is-open') ? 'hidden' : '';
   currentLightboxId = null;
+  if (flipBrowseMode) flipAllCardsDown();
   if (location.hash.startsWith('#product-')) {
     history.replaceState(null, '', location.pathname);
   }
 }
 
+function getFilteredProducts() {
+  if (activeSeriesFilter === 'all') return allProducts;
+  return allProducts.filter(product => (product.series || 'nullcraft') === activeSeriesFilter);
+}
+
+function countSeriesItems(series) {
+  if (series === 'all') return allProducts.length;
+  return allProducts.filter(product => (product.series || 'nullcraft') === series).length;
+}
+
+function updateFilterTags() {
+  if (!filterTags) return;
+
+  filterTags.querySelectorAll('.filter-tag').forEach(btn => {
+    const series = btn.dataset.series;
+    const count = countSeriesItems(series);
+    const label = series === 'all' ? 'ALL' : series;
+
+    btn.classList.toggle('active', series === activeSeriesFilter);
+    btn.innerHTML = `
+      <span class="filter-tag-label">${escapeHtml(label)}</span>
+      <span class="filter-tag-count">${count}</span>
+    `;
+    btn.disabled = series !== 'all' && count === 0;
+  });
+}
+
+function setSeriesFilter(series) {
+  activeSeriesFilter = series;
+  renderGallery();
+}
+
+function renderGallery() {
+  const filtered = getFilteredProducts();
+  const total = allProducts.length;
+
+  productCount.textContent = activeSeriesFilter === 'all'
+    ? `${total} ITEMS`
+    : `${filtered.length} / ${total} ITEMS`;
+
+  updateFilterTags();
+
+  window.GalleryPhysics?.destroy();
+  teardownFlipModeEvents();
+  productsGrid.classList.remove('gallery-grid--physics', 'gallery-grid--flip');
+
+  if (total === 0) {
+    productsGrid.innerHTML = `
+      <div class="empty-state" id="emptyState">
+        <span class="empty-icon">◌</span>
+        <span class="empty-text">尚無商品</span>
+      </div>`;
+    return;
+  }
+
+  if (filtered.length === 0) {
+    productsGrid.innerHTML = `
+      <div class="empty-state" id="emptyState">
+        <span class="empty-icon">◌</span>
+        <span class="empty-text">此系列尚無作品</span>
+      </div>`;
+    return;
+  }
+
+  productsGrid.innerHTML = getDisplayProducts(filtered).map(renderProduct).join('');
+  bindProductEvents();
+  initGalleryLayout();
+
+  if (location.hash.startsWith('#product-')) handleProductHash();
+}
+
+function initGalleryPhysics() {
+  productsGrid.classList.add('gallery-grid--physics');
+  requestAnimationFrame(() => {
+    requestAnimationFrame(() => {
+      const mounted = window.GalleryPhysics?.mount(productsGrid, productId => {
+        const product = allProducts.find(p => p.id === productId);
+        if (product) openImageLightbox(product);
+      });
+      if (!mounted) applyMasonryStagger();
+    });
+  });
+}
+
 function renderProduct(product) {
+  const sold = isProductSold(product);
   const imageHtml = product.image
     ? `<img src="${product.image}" alt="${escapeHtml(product.name)}">`
     : `<div class="product-image-placeholder">◌</div>`;
 
   const adminBtns = isAdmin
-    ? `<button class="card-action-btn edit-btn" data-action="edit" data-id="${product.id}">EDIT</button>
+    ? `<button class="card-action-btn sold-btn" data-action="toggle-sold" data-id="${product.id}">${sold ? 'RESTOCK' : 'SOLD'}</button>
+       <button class="card-action-btn edit-btn" data-action="edit" data-id="${product.id}">EDIT</button>
        <button class="delete-btn" data-action="delete" data-id="${product.id}">DEL</button>`
     : '';
 
-  const cartBtnHtml = isAdmin
+  const cartBtnHtml = isAdmin || sold
     ? ''
     : `<button class="card-action-btn" data-action="cart" data-id="${product.id}">CART</button>`;
 
@@ -836,22 +1348,35 @@ function renderProduct(product) {
     : `<button class="card-action-btn share-btn" data-action="share" data-id="${product.id}">SHARE</button>`;
 
   return `
-    <article class="gallery-card product-card" id="product-${product.id}" data-id="${product.id}">
-      <div class="card-img-wrap product-image-wrap" data-action="view" data-id="${product.id}">
-        ${imageHtml}
-        ${renderStockTypeBadge(product.stock_type)}
-        <div class="card-overlay">
-          <div class="card-meta-wrap">
-            <span class="card-badge">${escapeHtml(product.category)}</span>
-            <div class="card-title">${escapeHtml(product.name)}</div>
-            ${product.description ? `<div class="card-desc">${escapeHtml(product.description)}</div>` : ''}
-            <div class="card-price">NT$ ${formatPrice(product.price)}</div>
+    <article class="gallery-card product-card${sold ? ' product-card--sold' : ''}" id="product-${product.id}" data-id="${product.id}">
+      <div class="card-flip-inner">
+        <div class="card-face card-face--back" aria-hidden="true">
+          <div class="card-back-surface">
+            <span class="card-back-dot"></span>
           </div>
         </div>
-        <div class="card-actions">
-          ${cartBtnHtml}
-          ${shareBtnHtml}
-          ${adminBtns}
+        <div class="card-face card-face--front">
+          <div class="card-img-wrap product-image-wrap" data-action="view" data-id="${product.id}">
+            ${imageHtml}
+            ${sold ? '<div class="sold-stamp" aria-hidden="true">SOLD</div>' : ''}
+            ${renderStockTypeBadge(product.stock_type)}
+            <div class="card-overlay">
+              <div class="card-meta-wrap">
+                <div class="card-badges">
+                  <span class="card-badge card-badge-series">${escapeHtml(product.series || 'nullcraft')}</span>
+                  <span class="card-badge">${escapeHtml(product.category)}</span>
+                </div>
+                <div class="card-title">${escapeHtml(product.name)}</div>
+                ${product.description ? `<div class="card-desc">${escapeHtml(product.description)}</div>` : ''}
+                <div class="card-price${sold ? ' card-price--sold' : ''}">NT$ ${formatPrice(product.price)}</div>
+              </div>
+            </div>
+            <div class="card-actions">
+              ${cartBtnHtml}
+              ${shareBtnHtml}
+              ${adminBtns}
+            </div>
+          </div>
         </div>
       </div>
     </article>
@@ -872,18 +1397,21 @@ function bindProductEvents() {
       else if (el.dataset.action === 'edit') {
         closeImageLightbox();
         openEditModal(product);
-      } else if (el.dataset.action === 'delete') deleteProduct(id);
+      } else if (el.dataset.action === 'toggle-sold') toggleProductSold(id);
+      else if (el.dataset.action === 'delete') deleteProduct(id);
     });
   });
 
-  productsGrid.querySelectorAll('.product-card').forEach(card => {
-    card.addEventListener('click', e => {
-      if (e.target.closest('[data-action]')) return;
-      const id = Number(card.dataset.id);
-      const product = allProducts.find(p => p.id === id);
-      if (product) openImageLightbox(product);
+  if (!window.GalleryPhysics?.isActive() && !flipBrowseMode) {
+    productsGrid.querySelectorAll('.product-card').forEach(card => {
+      card.addEventListener('click', e => {
+        if (e.target.closest('[data-action]')) return;
+        const id = Number(card.dataset.id);
+        const product = allProducts.find(p => p.id === id);
+        if (product) openImageLightbox(product);
+      });
     });
-  });
+  }
 }
 
 function highlightProduct(id) {
@@ -907,6 +1435,11 @@ function handleProductHash() {
     setTimeout(() => highlightProduct(null), 2000);
   }
 
+  if (flipBrowseMode && card) {
+    if (!flipRevealInProgress) void openFlipProduct(card, product);
+    return;
+  }
+
   openImageLightbox(product);
 }
 
@@ -925,26 +1458,9 @@ async function loadProducts() {
   try {
     const res = await fetch('/api/products');
     allProducts = await res.json();
-
-    productCount.textContent = `${allProducts.length} ITEMS`;
-
-    if (allProducts.length === 0) {
-      productsGrid.innerHTML = `
-        <div class="empty-state" id="emptyState">
-          <span class="empty-icon">◌</span>
-          <span class="empty-text">尚無商品</span>
-        </div>`;
-      renderRecentSection();
-      renderCartDrawer();
-      return;
-    }
-
-    productsGrid.innerHTML = allProducts.map(renderProduct).join('');
-    bindProductEvents();
+    renderGallery();
     renderRecentSection();
     renderCartDrawer();
-
-    if (location.hash.startsWith('#product-')) handleProductHash();
   } catch {
     showToast('載入商品失敗', 'error');
   }
@@ -1001,6 +1517,26 @@ form.addEventListener('submit', async e => {
     btnLoading.hidden = true;
   }
 });
+
+filterTags?.querySelectorAll('.filter-tag').forEach(btn => {
+  btn.addEventListener('click', () => {
+    if (btn.disabled) return;
+    setSeriesFilter(btn.dataset.series);
+  });
+});
+
+randomBrowseBtn?.addEventListener('click', toggleRandomBrowse);
+flipBrowseBtn?.addEventListener('click', toggleFlipBrowse);
+
+addCategoryBtn?.addEventListener('click', addCustomCategory);
+categoryNew?.addEventListener('keydown', e => {
+  if (e.key === 'Enter') {
+    e.preventDefault();
+    addCustomCategory();
+  }
+});
+
+populateCategorySelects('其他');
 
 toggleFileInputOverlay(imageInput, true);
 toggleFileInputOverlay(editImageInput, true);

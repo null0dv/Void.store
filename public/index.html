@@ -39,19 +39,19 @@
               <label class="field-label" for="price">價格 NT$ <span class="req">*</span></label>
               <input class="field-input" type="number" id="price" name="price" placeholder="0" min="0" step="1" required>
 
-              <label class="field-label" for="category">分類</label>
-              <select class="sel" id="category" name="category">
-                <option value="銀飾">銀飾</option>
-                <option value="墜飾">墜飾</option>
-                <option value="耳環">耳環</option>
-                <option value="戒指">戒指</option>
-                <option value="服飾">服飾</option>
-                <option value="食品">食品</option>
-                <option value="3C電子">3C電子</option>
-                <option value="居家生活">居家生活</option>
-                <option value="美妝保養">美妝保養</option>
-                <option value="其他" selected>其他</option>
+              <label class="field-label" for="series">系列</label>
+              <select class="sel" id="series" name="series">
+                <option value="nullcraft" selected>nullcraft</option>
+                <option value="二手選品">二手選品</option>
+                <option value="礦石">礦石</option>
               </select>
+
+              <label class="field-label" for="category">品項</label>
+              <select class="sel" id="category" name="category"></select>
+              <div class="category-add-row" id="categoryAddRow" hidden>
+                <input class="field-input" type="text" id="categoryNew" maxlength="24" placeholder="輸入新品項名稱">
+                <button type="button" class="tb-btn" id="addCategoryBtn">新增品項</button>
+              </div>
 
               <label class="field-label" for="stockType">屬性</label>
               <select class="sel" id="stockType" name="stock_type">
@@ -91,15 +91,14 @@
       <div class="center-tabs">
         <div class="center-tab active">GALLERY</div>
       </div>
-      <div class="gallery-view" id="galleryView">
-        <section class="line-cta-banner" id="lineCtaBanner" hidden>
-          <div class="line-cta-copy">
-            <span class="line-cta-title">想看最新上架？</span>
-            <span class="line-cta-desc">加入官方 LINE 群組，掌握新品與優惠</span>
-          </div>
-          <div class="line-cta-actions">
-            <button type="button" class="line-btn" id="lineGroupBannerBtn" hidden>加入群組</button>
-          </div>
+      <div class="gallery-body">
+        <div class="gallery-view" id="galleryView">
+        <section class="event-slot" id="eventSlot" aria-label="活動專區">
+          <button type="button" class="event-slot-btn" id="eventSlotBtn" disabled aria-label="抽獎活動（未開放）">
+            <span class="dice-seven" aria-hidden="true">
+              <i></i><i></i><i></i><i></i><i></i><i></i><i></i>
+            </span>
+          </button>
         </section>
         <section class="recent-section" id="recentSection" hidden>
           <div class="recent-header">
@@ -108,12 +107,34 @@
           </div>
           <div class="recent-grid" id="recentGrid"></div>
         </section>
-        <div class="gallery-grid" id="productsGrid">
+        <p class="physics-hint">拖曳卡片可碰撞 · 輕點開啟商品</p>
+        <div class="gallery-grid gallery-grid--shuffle" id="productsGrid">
           <div class="empty-state" id="emptyState">
             <span class="empty-icon">◌</span>
             <span class="empty-text">尚無商品</span>
           </div>
         </div>
+        </div>
+        <aside class="gallery-filter" id="galleryFilter" aria-label="分類檢視">
+          <div class="sec-label">分類檢視</div>
+          <nav class="filter-tags" id="filterTags">
+            <button type="button" class="filter-tag active" data-series="all">ALL</button>
+            <button type="button" class="filter-tag" data-series="nullcraft">nullcraft</button>
+            <button type="button" class="filter-tag" data-series="二手選品">二手選品</button>
+            <button type="button" class="filter-tag" data-series="礦石">礦石</button>
+          </nav>
+          <div class="filter-divider" aria-hidden="true"></div>
+          <div class="sec-label">瀏覽</div>
+          <button type="button" class="filter-tag filter-tag--mode" id="randomBrowseBtn" aria-pressed="false">
+            <span class="filter-tag-label">:: 隨機</span>
+            <span class="filter-tag-count" id="randomBrowseIndicator">OFF</span>
+          </button>
+          <button type="button" class="filter-tag filter-tag--mode filter-tag--icon-only" id="flipBrowseBtn" aria-label="翻牌" aria-pressed="false">
+            <span class="filter-tag-icon dice-three" aria-hidden="true">
+              <i></i><i></i><i></i>
+            </span>
+          </button>
+        </aside>
       </div>
     </div>
   </div>
@@ -135,6 +156,7 @@
         <div class="lb-badges">
           <span class="card-badge" id="lightboxCategory"></span>
           <span class="card-type-badge" id="lightboxStockType" hidden></span>
+          <span class="sold-badge" id="lightboxSoldBadge" hidden>SOLD</span>
         </div>
         <h2 class="lb-title" id="lightboxName"></h2>
         <p class="lb-desc" id="lightboxDesc"></p>
@@ -145,6 +167,7 @@
             <button class="action-btn" id="lightboxShareBtn" type="button">SHARE</button>
           </div>
           <div class="lb-actions" id="lightboxAdminActions" hidden>
+            <button class="action-btn" id="lightboxSoldBtn" type="button">SOLD</button>
             <button class="action-btn" id="lightboxEditBtn" type="button">EDIT</button>
             <button class="action-btn action-btn-danger" id="lightboxDeleteBtn" type="button">DEL</button>
           </div>
@@ -186,25 +209,26 @@
           <label class="field-label" for="editPrice">價格 NT$ <span class="req">*</span></label>
           <input class="field-input" type="number" id="editPrice" name="price" min="0" step="1" required>
 
-          <label class="field-label" for="editCategory">分類</label>
-          <select class="sel" id="editCategory" name="category">
-            <option value="銀飾">銀飾</option>
-            <option value="墜飾">墜飾</option>
-            <option value="耳環">耳環</option>
-            <option value="戒指">戒指</option>
-            <option value="服飾">服飾</option>
-            <option value="食品">食品</option>
-            <option value="3C電子">3C電子</option>
-            <option value="居家生活">居家生活</option>
-            <option value="美妝保養">美妝保養</option>
-            <option value="其他">其他</option>
+          <label class="field-label" for="editSeries">系列</label>
+          <select class="sel" id="editSeries" name="series">
+            <option value="nullcraft">nullcraft</option>
+            <option value="二手選品">二手選品</option>
+            <option value="礦石">礦石</option>
           </select>
+
+          <label class="field-label" for="editCategory">品項</label>
+          <select class="sel" id="editCategory" name="category"></select>
 
           <label class="field-label" for="editStockType">屬性</label>
           <select class="sel" id="editStockType" name="stock_type">
             <option value="現貨">現貨</option>
             <option value="AI製">AI製</option>
           </select>
+
+          <label class="field-check">
+            <input type="checkbox" id="editSold" name="sold" value="1">
+            <span>標記為已售出 (SOLD)</span>
+          </label>
 
           <label class="field-label" for="editDescription">描述</label>
           <textarea class="prompt-area" id="editDescription" name="description" rows="3" placeholder="商品特色、規格..."></textarea>
@@ -277,6 +301,8 @@
 
   <div class="toast" id="toast" hidden></div>
 
+  <script src="https://cdn.jsdelivr.net/npm/matter-js@0.20.0/build/matter.min.js"></script>
+  <script src="gallery-physics.js"></script>
   <script src="app.js"></script>
 </body>
 </html>

@@ -4,6 +4,7 @@ const path = require('path');
 const fs = require('fs');
 const crypto = require('crypto');
 const productStore = require('./lib/product-store');
+const categoryStore = require('./lib/categories');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -26,6 +27,7 @@ if (!fs.existsSync(siteConfigFile)) {
     publicUrl: null,
     lineInquiryUrl: null,
     lineGroupUrl: null,
+    customCategories: [],
   }, null, 2), 'utf-8');
 }
 
@@ -158,7 +160,30 @@ app.get('/api/config', (req, res) => {
     storageBackend: productStore.usesSupabase() ? 'supabase' : 'local',
     lineInquiryUrl: site.lineInquiryUrl || null,
     lineGroupUrl: site.lineGroupUrl || null,
+    categories: categoryStore.getCategories(),
   });
+});
+
+app.post('/api/admin/categories', requireAdmin, (req, res) => {
+  const result = categoryStore.addCustomCategory(req.body?.name);
+  if (!result.ok) {
+    return res.status(400).json({ error: result.error });
+  }
+  res.json({ success: true, categories: result.categories });
+});
+
+app.put('/api/products/reorder', requireAdmin, async (req, res) => {
+  const { order } = req.body || {};
+  if (!Array.isArray(order) || order.length === 0) {
+    return res.status(400).json({ error: '請提供商品排序' });
+  }
+
+  try {
+    const products = await productStore.reorderProducts(order);
+    res.json({ success: true, products });
+  } catch (err) {
+    res.status(500).json({ error: err.message || '排序失敗' });
+  }
 });
 
 app.get('/api/products', async (req, res) => {
@@ -211,7 +236,7 @@ app.post('/api/admin/change-password', requireAdmin, (req, res) => {
 });
 
 app.post('/api/products', requireAdmin, upload.single('image'), async (req, res) => {
-  const { name, description, price, category, stock_type } = req.body;
+  const { name, description, price, category, stock_type, series } = req.body;
 
   if (!name || !price) {
     return res.status(400).json({ error: '商品名稱與價格為必填' });
@@ -219,7 +244,7 @@ app.post('/api/products', requireAdmin, upload.single('image'), async (req, res)
 
   try {
     const product = await productStore.createProduct(
-      { name, description, price, category, stock_type },
+      { name, description, price, category, stock_type, series },
       req.file || null,
     );
     res.status(201).json(product);
@@ -230,7 +255,7 @@ app.post('/api/products', requireAdmin, upload.single('image'), async (req, res)
 
 app.put('/api/products/:id', requireAdmin, upload.single('image'), async (req, res) => {
   const id = parseInt(req.params.id, 10);
-  const { name, description, price, category, stock_type } = req.body;
+  const { name, description, price, category, stock_type, series, sold } = req.body;
 
   if (!name || !price) {
     return res.status(400).json({ error: '商品名稱與價格為必填' });
@@ -239,13 +264,26 @@ app.put('/api/products/:id', requireAdmin, upload.single('image'), async (req, r
   try {
     const product = await productStore.updateProduct(
       id,
-      { name, description, price, category, stock_type },
+      { name, description, price, category, stock_type, series, sold },
       req.file || null,
     );
     if (!product) return res.status(404).json({ error: '找不到商品' });
     res.json(product);
   } catch (err) {
     res.status(500).json({ error: err.message || '更新失敗' });
+  }
+});
+
+app.patch('/api/products/:id/sold', requireAdmin, async (req, res) => {
+  const id = parseInt(req.params.id, 10);
+  const sold = req.body.sold === true || req.body.sold === 'true';
+
+  try {
+    const product = await productStore.setProductSold(id, sold);
+    if (!product) return res.status(404).json({ error: '找不到商品' });
+    res.json(product);
+  } catch (err) {
+    res.status(500).json({ error: err.message || '更新售出狀態失敗' });
   }
 });
 
