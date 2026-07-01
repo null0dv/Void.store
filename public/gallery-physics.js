@@ -10,6 +10,8 @@ window.GalleryPhysics = (() => {
   let walls = [];
   let onTap = null;
   let dragStart = null;
+  let wheelHandler = null;
+  let scrollParent = null;
 
   function resetCardStyles() {
     pairs.forEach(({ el }) => {
@@ -22,6 +24,11 @@ window.GalleryPhysics = (() => {
 
   function destroy() {
     resetCardStyles();
+    if (container && wheelHandler) {
+      container.removeEventListener('wheel', wheelHandler);
+      wheelHandler = null;
+    }
+    scrollParent = null;
     if (resizeObserver) {
       resizeObserver.disconnect();
       resizeObserver = null;
@@ -52,8 +59,17 @@ window.GalleryPhysics = (() => {
     const rect = container.getBoundingClientRect();
     return {
       width: Math.max(rect.width, 320),
-      height: Math.max(rect.height, 480),
+      height: getContentHeight(),
     };
+  }
+
+  function getContentHeight() {
+    let maxBottom = 520;
+    pairs.forEach(({ body, halfH }) => {
+      maxBottom = Math.max(maxBottom, body.position.y + halfH + 80);
+    });
+    const rectHeight = container ? container.getBoundingClientRect().height : 0;
+    return Math.max(maxBottom, rectHeight, 520);
   }
 
   function buildWalls(width, height) {
@@ -69,20 +85,45 @@ window.GalleryPhysics = (() => {
 
   function refreshWalls() {
     if (!engine || !container) return;
-    const { width, height } = getBounds();
+    const width = Math.max(container.getBoundingClientRect().width, 320);
+    const height = getContentHeight();
     walls.forEach(wall => Matter.Composite.remove(engine.world, wall));
     walls = buildWalls(width, height);
     Matter.Composite.add(engine.world, walls);
-    container.style.minHeight = `${Math.max(height, 520)}px`;
+    container.style.minHeight = `${Math.ceil(height)}px`;
   }
 
   function syncCards() {
+    let maxBottom = 0;
     pairs.forEach(({ body, el, halfW, halfH }) => {
       const x = Math.round(body.position.x - halfW);
       const y = Math.round(body.position.y - halfH);
       const angle = Math.abs(body.angularVelocity) < 0.002 ? 0 : body.angle;
       el.style.transform = `translate3d(${x}px, ${y}px, 0) rotate(${angle}rad)`;
+      maxBottom = Math.max(maxBottom, body.position.y + halfH);
     });
+    if (container && maxBottom > 0) {
+      container.style.minHeight = `${Math.ceil(maxBottom + 80)}px`;
+    }
+  }
+
+  function bindWheelScroll() {
+    scrollParent = container?.closest('.gallery-view');
+    if (!container || !scrollParent || wheelHandler) return;
+
+    wheelHandler = e => {
+      const maxScroll = scrollParent.scrollHeight - scrollParent.clientHeight;
+      if (maxScroll <= 0) return;
+
+      const next = scrollParent.scrollTop + e.deltaY;
+      const clamped = Math.max(0, Math.min(maxScroll, next));
+      if (clamped === scrollParent.scrollTop) return;
+
+      scrollParent.scrollTop = clamped;
+      e.preventDefault();
+    };
+
+    container.addEventListener('wheel', wheelHandler, { passive: false });
   }
 
   function loop() {
@@ -202,6 +243,7 @@ window.GalleryPhysics = (() => {
 
     resizeObserver = new ResizeObserver(() => refreshWalls());
     resizeObserver.observe(container);
+    bindWheelScroll();
     loop();
     return true;
   }
