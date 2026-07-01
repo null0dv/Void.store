@@ -19,6 +19,7 @@ const adminConfigFile = path.join(dataDir, 'admin-config.json');
 const siteConfigFile = path.join(dataDir, 'site-config.json');
 
 const adminSessions = new Map();
+const SUBUSER_ONANDON_PASSWORD = process.env.SUBUSER_ONANDON_PASSWORD || 'ONANDON777';
 
 if (!fs.existsSync(uploadsDir)) fs.mkdirSync(uploadsDir, { recursive: true });
 if (!fs.existsSync(dataDir)) fs.mkdirSync(dataDir, { recursive: true });
@@ -100,26 +101,66 @@ function parseCookies(req) {
   return cookies;
 }
 
-function createAdminSession() {
+function createSession(role, username = null) {
   const token = crypto.randomBytes(32).toString('hex');
-  adminSessions.set(token, Date.now());
+  adminSessions.set(token, { created: Date.now(), role, username });
   return token;
 }
 
-function isValidAdminSession(token) {
-  if (!token || !adminSessions.has(token)) return false;
-  const created = adminSessions.get(token);
-  if (Date.now() - created > SESSION_MAX_AGE) {
-    adminSessions.delete(token);
-    return false;
+function getSession(token) {
+  if (!token || !adminSessions.has(token)) return null;
+  const session = adminSessions.get(token);
+  if (typeof session === 'number') {
+    adminSessions.set(token, { created: session, role: 'admin', username: null });
+    return adminSessions.get(token);
   }
-  return true;
+  if (Date.now() - session.created > SESSION_MAX_AGE) {
+    adminSessions.delete(token);
+    return null;
+  }
+  return session;
+}
+
+function isValidAdminSession(token) {
+  return getSession(token)?.role === 'admin';
+}
+
+function setSessionCookie(res, token) {
+  res.cookie('admin_token', token, {
+    httpOnly: true,
+    sameSite: 'lax',
+    maxAge: SESSION_MAX_AGE,
+  });
 }
 
 function requireAdmin(req, res, next) {
-  const token = parseCookies(req).admin_token;
-  if (isValidAdminSession(token)) return next();
+  const session = getSession(parseCookies(req).admin_token);
+  if (session?.role === 'admin') {
+    req.userSession = session;
+    return next();
+  }
   res.status(401).json({ error: '需要管理員權限' });
+}
+
+function requireAuth(req, res, next) {
+  const session = getSession(parseCookies(req).admin_token);
+  if (session?.role === 'admin' || session?.role === 'onandon') {
+    req.userSession = session;
+    return next();
+  }
+  res.status(401).json({ error: '需要登入' });
+}
+
+function canEditProduct(session, product) {
+  if (!session || !product) return false;
+  if (session.role === 'admin') return true;
+  if (session.role === 'onandon') return product.uploaded_by === 'onandon';
+  return false;
+}
+
+async function findProductById(id) {
+  const products = await productStore.listProducts();
+  return products.find(product => product.id === id) || null;
 }
 
 initAdminConfig();
@@ -196,8 +237,13 @@ app.get('/api/products', async (req, res) => {
 });
 
 app.get('/api/admin/status', (req, res) => {
-  const token = parseCookies(req).admin_token;
-  res.json({ isAdmin: isValidAdminSession(token) });
+  const session = getSession(parseCookies(req).admin_token);
+  res.json({
+    isAdmin: session?.role === 'admin',
+    isSubUser: session?.role === 'onandon',
+    role: session?.role || null,
+    username: session?.username || null,
+  });
 });
 
 app.post('/api/admin/login', (req, res) => {
@@ -206,13 +252,20 @@ app.post('/api/admin/login', (req, res) => {
     return res.status(401).json({ error: '密碼錯誤' });
   }
 
-  const token = createAdminSession();
-  res.cookie('admin_token', token, {
-    httpOnly: true,
-    sameSite: 'lax',
-    maxAge: SESSION_MAX_AGE,
-  });
-  res.json({ success: true });
+  const token = createSession('admin');
+  setSessionCookie(res, token);
+  res.json({ success: true, role: 'admin' });
+});
+
+app.post('/api/subuser/login', (req, res) => {
+  const { password } = req.body;
+  if (!password || password !== SUBUSER_ONANDON_PASSWORD) {
+    return res.status(401).json({ error: '密碼錯誤' });
+  }
+
+  const token = createSession('onandon', 'ON AND ON');
+  setSessionCookie(res, token);
+  res.json({ success: true, role: 'onandon', username: 'ON AND ON' });
 });
 
 app.post('/api/admin/logout', (req, res) => {
@@ -235,7 +288,7 @@ app.post('/api/admin/change-password', requireAdmin, (req, res) => {
   res.json({ success: true, reauth: true });
 });
 
-app.post('/api/products', requireAdmin, upload.single('image'), async (req, res) => {
+app.post('/api/products', requireAuth, upload.single('image'), async (req, res) => {
   const { name, description, price, category, stock_type, series } = req.body;
 
   if (!name || !price) {
@@ -243,8 +296,9 @@ app.post('/api/products', requireAdmin, upload.single('image'), async (req, res)
   }
 
   try {
+    const uploaded_by = req.userSession.role === 'onandon' ? 'onandon' : 'admin';
     const product = await productStore.createProduct(
-      { name, description, price, category, stock_type, series },
+      { name, description, price, category, stock_type, series, uploaded_by },
       req.file || null,
     );
     res.status(201).json(product);
@@ -253,7 +307,7 @@ app.post('/api/products', requireAdmin, upload.single('image'), async (req, res)
   }
 });
 
-app.put('/api/products/:id', requireAdmin, upload.single('image'), async (req, res) => {
+app.put('/api/products/:id', requireAuth, upload.single('image'), async (req, res) => {
   const id = parseInt(req.params.id, 10);
   const { name, description, price, category, stock_type, series, sold } = req.body;
 
@@ -262,6 +316,12 @@ app.put('/api/products/:id', requireAdmin, upload.single('image'), async (req, r
   }
 
   try {
+    const existing = await findProductById(id);
+    if (!existing) return res.status(404).json({ error: '找不到商品' });
+    if (!canEditProduct(req.userSession, existing)) {
+      return res.status(403).json({ error: '僅能編輯自己上傳的商品' });
+    }
+
     const product = await productStore.updateProduct(
       id,
       { name, description, price, category, stock_type, series, sold },
@@ -274,11 +334,17 @@ app.put('/api/products/:id', requireAdmin, upload.single('image'), async (req, r
   }
 });
 
-app.patch('/api/products/:id/sold', requireAdmin, async (req, res) => {
+app.patch('/api/products/:id/sold', requireAuth, async (req, res) => {
   const id = parseInt(req.params.id, 10);
   const sold = req.body.sold === true || req.body.sold === 'true';
 
   try {
+    const existing = await findProductById(id);
+    if (!existing) return res.status(404).json({ error: '找不到商品' });
+    if (!canEditProduct(req.userSession, existing)) {
+      return res.status(403).json({ error: '僅能編輯自己上傳的商品' });
+    }
+
     const product = await productStore.setProductSold(id, sold);
     if (!product) return res.status(404).json({ error: '找不到商品' });
     res.json(product);
@@ -287,10 +353,16 @@ app.patch('/api/products/:id/sold', requireAdmin, async (req, res) => {
   }
 });
 
-app.delete('/api/products/:id', requireAdmin, async (req, res) => {
+app.delete('/api/products/:id', requireAuth, async (req, res) => {
   const id = parseInt(req.params.id, 10);
 
   try {
+    const existing = await findProductById(id);
+    if (!existing) return res.status(404).json({ error: '找不到商品' });
+    if (!canEditProduct(req.userSession, existing)) {
+      return res.status(403).json({ error: '僅能編輯自己上傳的商品' });
+    }
+
     const deleted = await productStore.deleteProduct(id);
     if (!deleted) return res.status(404).json({ error: '找不到商品' });
     res.json({ success: true });

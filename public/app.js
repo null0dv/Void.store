@@ -1,4 +1,7 @@
 let isAdmin = false;
+let isSubUser = false;
+let isEditor = false;
+let userRole = null;
 let allProducts = [];
 let currentLightboxId = null;
 let editingProductId = null;
@@ -40,6 +43,7 @@ const submitBtn = document.getElementById('submitBtn');
 const toast = document.getElementById('toast');
 const uploadSection = document.getElementById('uploadSection');
 const loginBtn = document.getElementById('loginBtn');
+const subuserLoginBtn = document.getElementById('subuserLoginBtn');
 const changePasswordBtn = document.getElementById('changePasswordBtn');
 const adminLogoutBtn = document.getElementById('adminLogoutBtn');
 const cartBtn = document.getElementById('cartBtn');
@@ -65,6 +69,10 @@ const loginModal = document.getElementById('loginModal');
 const loginForm = document.getElementById('loginForm');
 const adminPassword = document.getElementById('adminPassword');
 const cancelLogin = document.getElementById('cancelLogin');
+const subuserLoginModal = document.getElementById('subuserLoginModal');
+const subuserLoginForm = document.getElementById('subuserLoginForm');
+const subuserPassword = document.getElementById('subuserPassword');
+const cancelSubuserLogin = document.getElementById('cancelSubuserLogin');
 const subtitle = document.getElementById('subtitle');
 const imageLightbox = document.getElementById('imageLightbox');
 const lightboxImageWrap = document.getElementById('lightboxImageWrap');
@@ -391,6 +399,7 @@ dropZone.addEventListener('drop', e => {
 });
 
 function openLoginModal() {
+  closeSubuserLoginModal();
   loginModal.classList.add('is-open');
   adminPassword.value = '';
   adminPassword.focus();
@@ -398,6 +407,24 @@ function openLoginModal() {
 
 function closeLoginModal() {
   loginModal.classList.remove('is-open');
+}
+
+function openSubuserLoginModal() {
+  closeLoginModal();
+  subuserLoginModal.classList.add('is-open');
+  subuserPassword.value = '';
+  subuserPassword.focus();
+}
+
+function closeSubuserLoginModal() {
+  subuserLoginModal.classList.remove('is-open');
+}
+
+function canEditProduct(product) {
+  if (!product) return false;
+  if (isAdmin) return true;
+  if (isSubUser) return product.uploaded_by === 'onandon';
+  return false;
 }
 
 function openPasswordModal() {
@@ -412,6 +439,11 @@ function closePasswordModal() {
 }
 
 loginBtn.addEventListener('click', openLoginModal);
+subuserLoginBtn?.addEventListener('click', openSubuserLoginModal);
+cancelSubuserLogin?.addEventListener('click', closeSubuserLoginModal);
+subuserLoginModal?.addEventListener('click', e => {
+  if (e.target === subuserLoginModal) closeSubuserLoginModal();
+});
 changePasswordBtn.addEventListener('click', openPasswordModal);
 cancelPassword.addEventListener('click', closePasswordModal);
 passwordModal.addEventListener('click', e => {
@@ -440,7 +472,7 @@ passwordForm.addEventListener('submit', async e => {
     if (!res.ok) throw new Error(data.error || '密碼變更失敗');
 
     closePasswordModal();
-    setAdminMode(false);
+    setUserMode(null);
     showToast('密碼已更新，請用新密碼重新登入');
     openLoginModal();
   } catch (err) {
@@ -475,8 +507,8 @@ eventSlotBtn?.addEventListener('click', e => {
 
 adminLogoutBtn.addEventListener('click', async () => {
   await fetch('/api/admin/logout', { method: 'POST', ...fetchOpts });
-  setAdminMode(false);
-  showToast('管理員已登出');
+  setUserMode(null);
+  showToast('已登出');
   loadProducts();
 });
 
@@ -493,8 +525,32 @@ loginForm.addEventListener('submit', async e => {
     if (!res.ok) throw new Error(data.error || '登入失敗');
 
     closeLoginModal();
-    setAdminMode(true);
+    setUserMode('admin');
     showToast('登入成功');
+    if (!persistentStorage) {
+      showToast('雲端尚未設定 Supabase，商品可能在重新部署後消失', 'error');
+    }
+    loadProducts();
+  } catch (err) {
+    showToast(err.message, 'error');
+  }
+});
+
+subuserLoginForm?.addEventListener('submit', async e => {
+  e.preventDefault();
+  try {
+    const res = await fetch('/api/subuser/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ password: subuserPassword.value }),
+      ...fetchOpts,
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || '登入失敗');
+
+    closeSubuserLoginModal();
+    setUserMode('onandon');
+    showToast('ON AND ON 登入成功');
     if (!persistentStorage) {
       showToast('雲端尚未設定 Supabase，商品可能在重新部署後消失', 'error');
     }
@@ -628,20 +684,35 @@ function isPublicSite() {
   return !isLocalHost();
 }
 
-function setAdminMode(admin) {
-  isAdmin = admin;
-  uploadSection.classList.toggle('is-visible', admin);
-  uploadSection.hidden = !admin;
-  loginBtn.hidden = admin;
-  changePasswordBtn.hidden = !admin;
-  adminLogoutBtn.hidden = !admin;
-  if (categoryAddRow) categoryAddRow.hidden = !admin;
-  subtitle.textContent = admin ? '管理員模式' : '瀏覽精選商品';
-  modeLabel.textContent = admin ? 'ADMIN' : 'VIEWER';
-  modeLabel.classList.toggle('ok', admin);
+function setUserMode(role) {
+  userRole = role;
+  isAdmin = role === 'admin';
+  isSubUser = role === 'onandon';
+  isEditor = isAdmin || isSubUser;
+
+  uploadSection.classList.toggle('is-visible', isEditor);
+  uploadSection.hidden = !isEditor;
+  loginBtn.hidden = isEditor;
+  if (subuserLoginBtn) subuserLoginBtn.hidden = isEditor;
+  changePasswordBtn.hidden = !isAdmin;
+  adminLogoutBtn.hidden = !isEditor;
+  if (categoryAddRow) categoryAddRow.hidden = !isAdmin;
+
+  if (isAdmin) {
+    subtitle.textContent = '管理員模式';
+    modeLabel.textContent = 'ADMIN';
+  } else if (isSubUser) {
+    subtitle.textContent = 'ON AND ON 模式';
+    modeLabel.textContent = 'ONANDON';
+  } else {
+    subtitle.textContent = '瀏覽精選商品';
+    modeLabel.textContent = 'VIEWER';
+  }
+  modeLabel.classList.toggle('ok', isEditor);
+
   updateLineUi();
   updateLightboxActions();
-  if (!admin) closeEditModal();
+  if (!isEditor) closeEditModal();
   renderGallery();
 }
 
@@ -919,8 +990,13 @@ function resetEditImagePreview() {
 }
 
 function updateLightboxActions() {
-  if (lightboxGuestActions) lightboxGuestActions.hidden = isAdmin;
-  if (lightboxAdminActions) lightboxAdminActions.hidden = !isAdmin;
+  const product = currentLightboxId
+    ? allProducts.find(item => item.id === currentLightboxId)
+    : null;
+  const canEdit = product ? canEditProduct(product) : isAdmin;
+
+  if (lightboxGuestActions) lightboxGuestActions.hidden = isEditor;
+  if (lightboxAdminActions) lightboxAdminActions.hidden = !canEdit;
 }
 
 function updateLightboxSoldUI(product) {
@@ -928,15 +1004,15 @@ function updateLightboxSoldUI(product) {
 
   if (lightboxSoldBadge) lightboxSoldBadge.hidden = !sold;
   if (lightboxSoldBtn) lightboxSoldBtn.textContent = sold ? 'RESTOCK' : 'SOLD';
-  if (lightboxCartBtn) lightboxCartBtn.hidden = !isAdmin && sold;
+  if (lightboxCartBtn) lightboxCartBtn.hidden = isEditor || sold;
   if (lightboxPrice) {
-    lightboxPrice.classList.toggle('lb-price--sold', sold && !isAdmin);
+    lightboxPrice.classList.toggle('lb-price--sold', sold && !isEditor);
   }
 }
 
 async function toggleProductSold(id) {
   const product = allProducts.find(p => p.id === id);
-  if (!product || !isAdmin) return;
+  if (!product || !canEditProduct(product)) return;
 
   const nextSold = !isProductSold(product);
 
@@ -966,7 +1042,7 @@ async function toggleProductSold(id) {
 }
 
 function openEditModal(product) {
-  if (!isAdmin || !product) return;
+  if (!canEditProduct(product)) return;
 
   editingProductId = product.id;
   editId.value = String(product.id);
@@ -1333,17 +1409,18 @@ function renderProduct(product) {
     ? `<img src="${product.image}" alt="${escapeHtml(product.name)}">`
     : `<div class="product-image-placeholder">◌</div>`;
 
-  const adminBtns = isAdmin
+  const canEdit = canEditProduct(product);
+  const editorBtns = canEdit
     ? `<button class="card-action-btn sold-btn" data-action="toggle-sold" data-id="${product.id}">${sold ? 'RESTOCK' : 'SOLD'}</button>
        <button class="card-action-btn edit-btn" data-action="edit" data-id="${product.id}">EDIT</button>
        <button class="delete-btn" data-action="delete" data-id="${product.id}">DEL</button>`
     : '';
 
-  const cartBtnHtml = isAdmin || sold
+  const cartBtnHtml = isEditor || sold
     ? ''
     : `<button class="card-action-btn" data-action="cart" data-id="${product.id}">CART</button>`;
 
-  const shareBtnHtml = isAdmin
+  const shareBtnHtml = isEditor
     ? ''
     : `<button class="card-action-btn share-btn" data-action="share" data-id="${product.id}">SHARE</button>`;
 
@@ -1374,7 +1451,7 @@ function renderProduct(product) {
             <div class="card-actions">
               ${cartBtnHtml}
               ${shareBtnHtml}
-              ${adminBtns}
+              ${editorBtns}
             </div>
           </div>
         </div>
@@ -1444,13 +1521,21 @@ function handleProductHash() {
 }
 
 async function checkAdminStatus() {
-  setAdminMode(false);
   closeLoginModal();
+  closeSubuserLoginModal();
 
-  if (isPublicSite()) {
-    try {
-      await fetch('/api/admin/logout', { method: 'POST', ...fetchOpts });
-    } catch { /* ignore */ }
+  try {
+    const res = await fetch('/api/admin/status', fetchOpts);
+    const data = await res.json();
+    if (data.isAdmin) {
+      setUserMode('admin');
+    } else if (data.isSubUser) {
+      setUserMode('onandon');
+    } else {
+      setUserMode(null);
+    }
+  } catch {
+    setUserMode(null);
   }
 }
 

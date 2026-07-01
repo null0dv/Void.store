@@ -118,6 +118,13 @@ body {
   letter-spacing: 0.04em;
 }
 
+.tb-btn-subuser {
+  font-family: var(--sans);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+}
+
 .tb-btn-line {
   color: var(--line-green);
   border-color: rgba(6, 199, 85, 0.35);

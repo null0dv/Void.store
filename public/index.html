@@ -20,6 +20,7 @@
       <span class="status-text" id="subtitle">瀏覽精選商品</span>
       <button class="tb-btn tb-btn-line" id="lineGroupBtn" type="button" hidden>LINE 群組</button>
       <button class="tb-btn" id="cartBtn" type="button">CART <span class="cart-badge" id="cartBadge" hidden>0</span></button>
+      <button class="tb-btn tb-btn-subuser" id="subuserLoginBtn" type="button">ON AND ON</button>
       <button class="tb-btn tb-btn-null" id="loginBtn" type="button">_null</button>
       <button class="tb-btn" id="changePasswordBtn" type="button" hidden>PASSWORD</button>
       <button class="tb-btn" id="adminLogoutBtn" type="button" hidden>LOGOUT</button>
@@ -293,6 +294,20 @@
         <input class="field-input" type="password" id="adminPassword" placeholder="PASSWORD" autocomplete="current-password" required>
         <div class="modal-actions">
           <button type="button" class="tb-btn" id="cancelLogin">CANCEL</button>
+          <button type="submit" class="gen-btn gen-btn-sm">LOGIN</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div class="modal-overlay" id="subuserLoginModal">
+    <div class="modal">
+      <div class="sec-label">ON AND ON</div>
+      <p class="modal-desc">副使用者登入 · 僅能編輯自己上傳的商品</p>
+      <form id="subuserLoginForm">
+        <input class="field-input" type="password" id="subuserPassword" placeholder="PASSWORD" autocomplete="current-password" required>
+        <div class="modal-actions">
+          <button type="button" class="tb-btn" id="cancelSubuserLogin">CANCEL</button>
           <button type="submit" class="gen-btn gen-btn-sm">LOGIN</button>
         </div>
       </form>
